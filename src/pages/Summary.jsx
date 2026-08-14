@@ -22,8 +22,8 @@ export default function Summary() {
     }
   }
 
-  function compute() {
-    return computeFinancialState(summary, transactions, new Date())
+  function compute(referenceDate = new Date()) {
+    return computeFinancialState(summary, transactions, referenceDate)
   }
 
   async function saveCell(cell, value) {
@@ -33,7 +33,10 @@ export default function Summary() {
 
   if (loading) return <div style={styles.center}>טוען...</div>
 
-  const { checking, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute()
+  const now = new Date()
+  const { checking, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(now)
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const { checking: estimatedEndOfMonthChecking } = compute(endOfMonth)
   const essentialBudget = Number(summary.essential) || 0
   const discretionaryBudget = Number(summary.discretionary) || 0
 
@@ -44,6 +47,14 @@ export default function Summary() {
       <div style={styles.card}>
         <div style={styles.cardLabel}>יתרת עו״ש</div>
         <div style={styles.cardValue}>{checking.toFixed(0)} ₪</div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.cardLabel}>עו״ש משוער בסוף החודש</div>
+        <div style={styles.cardValue}>{estimatedEndOfMonthChecking.toFixed(0)} ₪</div>
+        <div style={styles.cardHint}>
+          לפי התנועות שכבר הוזנו וחיובי האשראי שצפויים לרדת עד סוף החודש
+        </div>
       </div>
 
       <div style={styles.card}>
