@@ -1,0 +1,462 @@
+import { getToken } from './googleAuth'
+import {
+  SHEET_TABS,
+  TRANSACTION_COLUMNS,
+  TRANSACTION_HEADERS,
+} from '../config/sheetsConfig'
+import {
+  computeFinancialState,
+  getMonthKey,
+  getMonthStart,
+  toIsoDate,
+} from '../utils/billing'
+
+const BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
+const SPREADSHEET_ID_KEY = 'expense_tracker_spreadsheet_id'
+let creationPromise = null
+const monthPromises = new Map()
+
+async function googleRequest(url, options = {}) {
+  const token = getToken()
+  if (!token) throw new Error('Not signed in')
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    const error = new Error(`Sheets API error: ${err}`)
+    error.status = res.status
+    throw error
+  }
+
+  if (res.status === 204) return null
+  return res.json()
+}
+
+
+function a1(title, cells) {
+  const escaped = String(title).replaceAll("'", "''")
+  return `'${escaped}'!${cells}`
+}
+
+function tabsForMonth(monthKey) {
+  return {
+    transactions: `${SHEET_TABS.TRANSACTIONS} ${monthKey}`,
+    summary: `${SHEET_TABS.SUMMARY} ${monthKey}`,
+  }
+}
+
+function findSheet(metadata, title) {
+  return metadata.sheets?.find(item => item.properties?.title === title) ?? null
+}
+
+function extractMonthKey(title) {
+  const match = String(title ?? '').match(/^(?:תנועות|סיכום) (\d{4}-\d{2})$/)
+  return match?.[1] ?? null
+}
+
+function getLatestPreviousMonthKey(metadata, currentMonthKey) {
+  const keys = new Set()
+  for (const sheet of metadata.sheets ?? []) {
+    const key = extractMonthKey(sheet.properties?.title)
+    if (key && key < currentMonthKey) keys.add(key)
+  }
+  return [...keys].sort().at(-1) ?? null
+}
+
+async function getMetadata(spreadsheetId) {
+  return googleRequest(`${BASE}/${spreadsheetId}?fields=sheets.properties(sheetId,title)`)
+}
+
+async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
+  const checking = Number(values.checking) || 0
+  const credit = Math.max(Number(values.credit) || 0, 0)
+  const trackingStartDate = values.trackingStartDate || toIsoDate()
+  const essential = Number(values.essential) || 0
+  const discretionary = Number(values.discretionary) || 0
+
+  await googleRequest(`${BASE}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: a1(tabs.transactions, 'A1:G1'),
+          values: [TRANSACTION_HEADERS],
+        },
+        {
+          range: a1(tabs.summary, 'A1:B6'),
+          values: [
+            ['פריט', 'ערך'],
+            ['יתרת עו"ש התחלתית', checking],
+            ['יתרת אשראי התחלתית', credit],
+            ['תאריך תחילת מעקב', trackingStartDate],
+            ['תקציב הכרחי', essential],
+            ['תקציב מותרות', discretionary],
+          ],
+        },
+      ],
+    }),
+  })
+}
+
+async function createSpreadsheet() {
+  const monthKey = getMonthKey()
+  const tabs = tabsForMonth(monthKey)
+
+  const created = await googleRequest(BASE, {
+    method: 'POST',
+    body: JSON.stringify({
+      properties: { title: 'ניהול הוצאות' },
+      sheets: [
+        { properties: { title: tabs.transactions } },
+        { properties: { title: tabs.summary } },
+      ],
+    }),
+  })
+
+  const spreadsheetId = created.spreadsheetId
+  localStorage.setItem(SPREADSHEET_ID_KEY, spreadsheetId)
+
+  try {
+    await writeInitialMonthValues(spreadsheetId, tabs, {
+      trackingStartDate: toIsoDate(getMonthStart(monthKey)),
+    })
+  } catch (error) {
+    localStorage.removeItem(SPREADSHEET_ID_KEY)
+    throw error
+  }
+
+  return spreadsheetId
+}
+
+export async function ensureSpreadsheet() {
+  const existing = localStorage.getItem(SPREADSHEET_ID_KEY)
+  if (existing) return existing
+
+  if (!creationPromise) {
+    creationPromise = createSpreadsheet().finally(() => {
+      creationPromise = null
+    })
+  }
+
+  return creationPromise
+}
+
+export function getSpreadsheetId() {
+  return localStorage.getItem(SPREADSHEET_ID_KEY)
+}
+
+function rowToTransaction(row, rowIndex) {
+  const obj = {}
+  TRANSACTION_COLUMNS.forEach((key, i) => {
+    obj[key] = row[i] ?? ''
+  })
+  return { ...obj, amount: Number(obj.amount) || 0, rowIndex }
+}
+
+function transactionToRow(t) {
+  return TRANSACTION_COLUMNS.map(key => String(t[key] ?? ''))
+}
+
+async function readTransactionsFromMonth(spreadsheetId, monthKey) {
+  const tabs = tabsForMonth(monthKey)
+  const range = a1(tabs.transactions, 'A2:G')
+  const data = await googleRequest(`${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`)
+  const rows = data.values ?? []
+  return rows.map((row, i) => rowToTransaction(row, i + 2))
+}
+
+async function readSummaryFromMonth(spreadsheetId, monthKey) {
+  const tabs = tabsForMonth(monthKey)
+  const ranges = [
+    a1(tabs.summary, 'B2'),
+    a1(tabs.summary, 'B3'),
+    a1(tabs.summary, 'B4'),
+    a1(tabs.summary, 'B5'),
+    a1(tabs.summary, 'B6'),
+  ]
+  const qs = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
+  const data = await googleRequest(`${BASE}/${spreadsheetId}/values:batchGet?${qs}`)
+  const [checking, credit, trackingStartDate, essential, discretionary] = data.valueRanges.map(
+    vr => vr.values?.[0]?.[0] ?? ''
+  )
+
+  return { checking, credit, trackingStartDate, essential, discretionary }
+}
+
+async function migrateLegacyTabs(spreadsheetId, metadata, monthKey) {
+  const tabs = tabsForMonth(monthKey)
+  const currentTransactions = findSheet(metadata, tabs.transactions)
+  const currentSummary = findSheet(metadata, tabs.summary)
+  if (currentTransactions || currentSummary) return metadata
+
+  const legacyTransactions = findSheet(metadata, SHEET_TABS.TRANSACTIONS)
+  const legacySummary = findSheet(metadata, SHEET_TABS.SUMMARY)
+  if (!legacyTransactions || !legacySummary) return metadata
+
+  await googleRequest(`${BASE}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [
+        {
+          updateSheetProperties: {
+            properties: {
+              sheetId: legacyTransactions.properties.sheetId,
+              title: tabs.transactions,
+            },
+            fields: 'title',
+          },
+        },
+        {
+          updateSheetProperties: {
+            properties: {
+              sheetId: legacySummary.properties.sheetId,
+              title: tabs.summary,
+            },
+            fields: 'title',
+          },
+        },
+      ],
+    }),
+  })
+
+  return getMetadata(spreadsheetId)
+}
+
+async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
+  const previousMonthKey = getLatestPreviousMonthKey(metadata, currentMonthKey)
+  if (!previousMonthKey) {
+    return {
+      checking: 0,
+      credit: 0,
+      essential: 0,
+      discretionary: 0,
+    }
+  }
+
+  const previousTabs = tabsForMonth(previousMonthKey)
+  if (!findSheet(metadata, previousTabs.transactions) || !findSheet(metadata, previousTabs.summary)) {
+    return {
+      checking: 0,
+      credit: 0,
+      essential: 0,
+      discretionary: 0,
+    }
+  }
+
+  const [summary, transactions] = await Promise.all([
+    readSummaryFromMonth(spreadsheetId, previousMonthKey),
+    readTransactionsFromMonth(spreadsheetId, previousMonthKey),
+  ])
+
+  // Carry the real balance as of the first day of the new month. Credit that
+  // is still waiting for the 10th stays outstanding and is charged automatically.
+  const state = computeFinancialState(summary, transactions, getMonthStart(currentMonthKey))
+
+  return {
+    checking: state.checking,
+    credit: state.credit,
+    essential: Number(summary.essential) || 0,
+    discretionary: Number(summary.discretionary) || 0,
+  }
+}
+
+async function createMonthTabs(spreadsheetId, metadata, monthKey) {
+  const tabs = tabsForMonth(monthKey)
+  const missingTransactions = !findSheet(metadata, tabs.transactions)
+  const missingSummary = !findSheet(metadata, tabs.summary)
+
+  if (!missingTransactions && !missingSummary) return metadata
+
+  const carry = await getCarryForward(spreadsheetId, metadata, monthKey)
+  const requests = []
+  if (missingTransactions) requests.push({ addSheet: { properties: { title: tabs.transactions } } })
+  if (missingSummary) requests.push({ addSheet: { properties: { title: tabs.summary } } })
+
+  await googleRequest(`${BASE}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ requests }),
+  })
+
+  const data = []
+  if (missingTransactions) {
+    data.push({
+      range: a1(tabs.transactions, 'A1:G1'),
+      values: [TRANSACTION_HEADERS],
+    })
+  }
+  if (missingSummary) {
+    data.push({
+      range: a1(tabs.summary, 'A1:B6'),
+      values: [
+        ['פריט', 'ערך'],
+        ['יתרת עו"ש התחלתית', carry.checking],
+        ['יתרת אשראי התחלתית', carry.credit],
+        ['תאריך תחילת מעקב', toIsoDate(getMonthStart(monthKey))],
+        ['תקציב הכרחי', carry.essential],
+        ['תקציב מותרות', carry.discretionary],
+      ],
+    })
+  }
+
+  if (data.length) {
+    await googleRequest(`${BASE}/${spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+    })
+  }
+
+  return getMetadata(spreadsheetId)
+}
+
+async function ensureCurrentMonthInternal() {
+  let spreadsheetId = await ensureSpreadsheet()
+  const monthKey = getMonthKey()
+
+  try {
+    let metadata = await getMetadata(spreadsheetId)
+    metadata = await migrateLegacyTabs(spreadsheetId, metadata, monthKey)
+    metadata = await createMonthTabs(spreadsheetId, metadata, monthKey)
+    return { spreadsheetId, monthKey, tabs: tabsForMonth(monthKey), metadata }
+  } catch (error) {
+    // If the whole spreadsheet was deleted from Drive, create a fresh one.
+    if (error.status === 404) {
+      localStorage.removeItem(SPREADSHEET_ID_KEY)
+      creationPromise = null
+      spreadsheetId = await ensureSpreadsheet()
+      const metadata = await getMetadata(spreadsheetId)
+      return { spreadsheetId, monthKey, tabs: tabsForMonth(monthKey), metadata }
+    }
+    throw error
+  }
+}
+
+export async function ensureCurrentMonth() {
+  const spreadsheetId = await ensureSpreadsheet()
+  const monthKey = getMonthKey()
+  const key = `${spreadsheetId}:${monthKey}`
+
+  if (!monthPromises.has(key)) {
+    monthPromises.set(
+      key,
+      ensureCurrentMonthInternal().finally(() => {
+        monthPromises.delete(key)
+      })
+    )
+  }
+
+  return monthPromises.get(key)
+}
+
+export async function fetchTransactions() {
+  const { spreadsheetId, tabs } = await ensureCurrentMonth()
+  const range = a1(tabs.transactions, 'A2:G')
+  const data = await googleRequest(`${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`)
+  const rows = data.values ?? []
+  return rows.map((row, i) => rowToTransaction(row, i + 2))
+}
+
+export async function appendTransaction(transaction) {
+  const { spreadsheetId, tabs } = await ensureCurrentMonth()
+  const range = a1(tabs.transactions, 'A2:G')
+  return googleRequest(
+    `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ values: [transactionToRow(transaction)] }),
+    }
+  )
+}
+
+export async function updateTransaction(transaction) {
+  const { spreadsheetId, tabs } = await ensureCurrentMonth()
+  const range = a1(tabs.transactions, `A${transaction.rowIndex}:G${transaction.rowIndex}`)
+  return googleRequest(
+    `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ values: [transactionToRow(transaction)] }),
+    }
+  )
+}
+
+export async function deleteTransaction(rowIndex) {
+  const row = Number(rowIndex)
+  if (!Number.isInteger(row) || row < 2) {
+    throw new Error('Invalid transaction row')
+  }
+
+  const { spreadsheetId, tabs, metadata } = await ensureCurrentMonth()
+  const sheet = findSheet(metadata, tabs.transactions)
+  if (!sheet) throw new Error(`Sheet tab not found: ${tabs.transactions}`)
+
+  // Sheets API uses zero-based indexes and an exclusive endIndex.
+  return googleRequest(`${BASE}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: row - 1,
+              endIndex: row,
+            },
+          },
+        },
+      ],
+    }),
+  })
+}
+
+export async function fetchSummary() {
+  const { spreadsheetId, monthKey, tabs } = await ensureCurrentMonth()
+  const ranges = [
+    a1(tabs.summary, 'B2'),
+    a1(tabs.summary, 'B3'),
+    a1(tabs.summary, 'B4'),
+    a1(tabs.summary, 'B5'),
+    a1(tabs.summary, 'B6'),
+  ]
+  const qs = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
+  const data = await googleRequest(`${BASE}/${spreadsheetId}/values:batchGet?${qs}`)
+  const [checking, credit, trackingStartDate, essential, discretionary] = data.valueRanges.map(
+    vr => vr.values?.[0]?.[0] ?? ''
+  )
+
+  let startDate = trackingStartDate
+  if (!startDate) {
+    startDate = toIsoDate(getMonthStart(monthKey))
+    const range = a1(tabs.summary, 'A4:B4')
+    await googleRequest(
+      `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ values: [['תאריך תחילת מעקב', startDate]] }),
+      }
+    )
+  }
+
+  return { checking, credit, trackingStartDate: startDate, essential, discretionary }
+}
+
+export async function updateSummaryCell(cell, value) {
+  const { spreadsheetId, tabs } = await ensureCurrentMonth()
+  const range = a1(tabs.summary, cell)
+  return googleRequest(
+    `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ values: [[value]] }),
+    }
+  )
+}
