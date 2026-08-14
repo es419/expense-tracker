@@ -6,6 +6,7 @@ import AddTransaction from './pages/AddTransaction'
 import Summary from './pages/Summary'
 import BottomNav from './components/BottomNav'
 import ThemeToggle from './components/ThemeToggle'
+import { restoreSession } from './services/googleAuth'
 import './App.css'
 
 const THEME_KEY = 'expense_tracker_theme'
@@ -17,12 +18,17 @@ function getInitialTheme() {
 }
 
 function App() {
-  const [isSignedIn, setIsSignedIn] = useState(false)
+  const [isSignedIn, setIsSignedIn] = useState(null)
   const [theme, setTheme] = useState(getInitialTheme)
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (token) setIsSignedIn(true)
+    let active = true
+    restoreSession().then(signedIn => {
+      if (active) setIsSignedIn(signedIn)
+    })
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
@@ -37,11 +43,28 @@ function App() {
     setTheme(current => current === 'dark' ? 'light' : 'dark')
   }
 
+  if (isSignedIn === null) {
+    return (
+      <div className="sign-in-shell">
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        <div style={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          background: 'var(--bg)',
+          color: 'var(--text-muted)',
+        }}>
+          מתחבר…
+        </div>
+      </div>
+    )
+  }
+
   if (!isSignedIn) {
     return (
       <div className="sign-in-shell">
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
-        <SignIn onSignIn={() => setIsSignedIn(true)} />
+        <SignIn />
       </div>
     )
   }
@@ -55,6 +78,7 @@ function App() {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/add" element={<AddTransaction />} />
           <Route path="/summary" element={<Summary />} />
+          <Route path="*" element={<Navigate to="/transactions" replace />} />
         </Routes>
         <BottomNav />
       </div>

@@ -1,4 +1,4 @@
-import { getToken } from './googleAuth'
+import { getToken, invalidateAccessToken } from './googleAuth'
 import {
   SHEET_TABS,
   TRANSACTION_COLUMNS,
@@ -17,17 +17,30 @@ let creationPromise = null
 const monthPromises = new Map()
 
 async function googleRequest(url, options = {}) {
-  const token = getToken()
+  async function requestWithToken(token) {
+    return fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
+  }
+
+  let token = await getToken()
   if (!token) throw new Error('Not signed in')
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
+  let res = await requestWithToken(token)
+
+  // If Google says the short-lived access token is no longer valid, refresh it
+  // once through our Vercel backend and retry the Sheets request.
+  if (res.status === 401) {
+    invalidateAccessToken()
+    token = await getToken({ forceRefresh: true })
+    if (!token) throw new Error('Not signed in')
+    res = await requestWithToken(token)
+  }
 
   if (!res.ok) {
     const err = await res.text()

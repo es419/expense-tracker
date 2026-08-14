@@ -38,7 +38,3 @@ export const CATEGORIES = [
   'טעינה לאוטו',
   'ויטמינים',
 ]
-
-export const GOOGLE_CLIENT_ID = '561126899858-u8npfj4vo25676q2v8updsc6e5sfr26t.apps.googleusercontent.com'
-export const REDIRECT_URI = window.location.origin + '/auth/callback'
-export const SCOPES = 'https://www.googleapis.com/auth/spreadsheets'
