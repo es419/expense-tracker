@@ -22,11 +22,11 @@ export default function SignIn({ onSignIn }) {
       height: '100vh',
       gap: '24px',
       padding: '24px',
-      background: '#f5f5f5'
+      background: 'var(--bg)'
     }}>
       <div style={{ fontSize: '48px' }}>💰</div>
       <h1 style={{ margin: 0, fontSize: '24px' }}>ניהול הוצאות</h1>
-      <p style={{ margin: 0, color: '#666', textAlign: 'center' }}>
+      <p style={{ margin: 0, color: 'var(--text-muted)', textAlign: 'center' }}>
         התחבר עם Google כדי לסנכרן עם הגיליון שלך
       </p>
       <button
@@ -34,8 +34,8 @@ export default function SignIn({ onSignIn }) {
         style={{
           padding: '12px 32px',
           fontSize: '16px',
-          background: '#4285f4',
-          color: 'white',
+          background: 'var(--primary)',
+          color: 'var(--primary-text)',
           border: 'none',
           borderRadius: '8px',
           cursor: 'pointer',

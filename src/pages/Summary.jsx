@@ -88,7 +88,7 @@ function BudgetBar({ title, spent, budget }) {
       <div style={styles.cardLabel}>{title}</div>
       <div style={styles.cardValue}>{spent.toFixed(0)} / {budget.toFixed(0)} ₪</div>
       <div style={styles.barBg}>
-        <div style={{ ...styles.barFill, width: `${pct * 100}%`, background: over ? '#c62828' : '#555' }} />
+        <div style={{ ...styles.barFill, width: `${pct * 100}%`, background: over ? 'var(--expense)' : 'var(--primary)' }} />
       </div>
     </div>
   )
@@ -108,16 +108,16 @@ function ManualRow({ label, value, onSave }) {
 const styles = {
   container: { padding: '16px', paddingBottom: '80px', direction: 'rtl' },
   title: { marginBottom: '16px' },
-  card: { background: 'rgba(127,127,127,0.10)', borderRadius: '12px', padding: '16px', marginBottom: '12px' },
-  cardLabel: { fontSize: '13px', color: '#888' },
+  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '12px', boxShadow: 'var(--shadow)' },
+  cardLabel: { fontSize: '13px', color: 'var(--text-muted)' },
   cardValue: { fontSize: '22px', fontWeight: 'bold', marginTop: '4px' },
-  cardHint: { fontSize: '12px', color: '#888', marginTop: '6px' },
-  barBg: { height: '8px', background: 'rgba(127,127,127,0.2)', borderRadius: '4px', marginTop: '8px', overflow: 'hidden' },
+  cardHint: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' },
+  barBg: { height: '8px', background: 'var(--surface-strong)', borderRadius: '4px', marginTop: '8px', overflow: 'hidden' },
   barFill: { height: '8px', borderRadius: '4px' },
   sectionTitle: { marginTop: '24px', marginBottom: '12px' },
   manualRow: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' },
   manualLabel: { flex: 1, fontSize: '13px' },
-  manualInput: { width: '90px', padding: '6px', borderRadius: '6px', border: '1px solid #555', textAlign: 'right', background: 'transparent' },
-  saveBtn: { padding: '6px 12px', background: '#333', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
+  manualInput: { width: '90px', padding: '6px', borderRadius: '6px', border: '1px solid var(--border)', textAlign: 'right', background: 'var(--surface)', color: 'var(--text)' },
+  saveBtn: { padding: '6px 12px', background: 'var(--button)', color: 'var(--button-text)', border: 'none', borderRadius: '6px', cursor: 'pointer' },
   center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' },
 }

@@ -1,16 +1,17 @@
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #fff;
   max-width: 480px;
   margin: 0 auto;
 }
 
-.app {
+.app,
+.sign-in-shell {
   min-height: 100vh;
+  min-height: 100svh;
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color 180ms ease, color 180ms ease;
 }
