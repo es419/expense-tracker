@@ -95,6 +95,7 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
   const essential = Number(values.essential) || 0
   const discretionary = Number(values.discretionary) || 0
   const previousCharges = Math.max(Number(values.previousCharges) || 0, 0)
+  const wallet = Number(values.wallet) || 0
 
   await googleRequest(`${BASE}/${spreadsheetId}/values:batchUpdate`, {
     method: 'POST',
@@ -106,7 +107,7 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
           values: [TRANSACTION_HEADERS],
         },
         {
-          range: a1(tabs.summary, 'A1:B7'),
+          range: a1(tabs.summary, 'A1:B8'),
           values: [
             ['פריט', 'ערך'],
             ['יתרת עו"ש התחלתית', checking],
@@ -115,6 +116,7 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
             ['תקציב הכרחי', essential],
             ['תקציב מותרות', discretionary],
             ['חיובים מחודש קודם', previousCharges],
+            ['יתרת ארנק התחלתית', wallet],
           ],
         },
       ],
@@ -198,14 +200,15 @@ async function readSummaryFromMonth(spreadsheetId, monthKey) {
     a1(tabs.summary, 'B5'),
     a1(tabs.summary, 'B6'),
     a1(tabs.summary, 'B7'),
+    a1(tabs.summary, 'B8'),
   ]
   const qs = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
   const data = await googleRequest(`${BASE}/${spreadsheetId}/values:batchGet?${qs}`)
-  const [checking, credit, trackingStartDate, essential, discretionary, previousCharges] = data.valueRanges.map(
+  const [checking, credit, trackingStartDate, essential, discretionary, previousCharges, wallet] = data.valueRanges.map(
     vr => vr.values?.[0]?.[0] ?? ''
   )
 
-  return { checking, credit, trackingStartDate, essential, discretionary, previousCharges }
+  return { checking, credit, trackingStartDate, essential, discretionary, previousCharges, wallet }
 }
 
 async function migrateLegacyTabs(spreadsheetId, metadata, monthKey) {
@@ -256,6 +259,7 @@ async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
       essential: 0,
       discretionary: 0,
       previousCharges: 0,
+      wallet: 0,
     }
   }
 
@@ -267,6 +271,7 @@ async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
       essential: 0,
       discretionary: 0,
       previousCharges: 0,
+      wallet: 0,
     }
   }
 
@@ -281,6 +286,7 @@ async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
 
   return {
     checking: state.checking,
+    wallet: state.wallet,
     credit: 0,
     previousCharges: state.credit,
     essential: Number(summary.essential) || 0,
@@ -314,7 +320,7 @@ async function createMonthTabs(spreadsheetId, metadata, monthKey) {
   }
   if (missingSummary) {
     data.push({
-      range: a1(tabs.summary, 'A1:B7'),
+      range: a1(tabs.summary, 'A1:B8'),
       values: [
         ['פריט', 'ערך'],
         ['יתרת עו"ש התחלתית', carry.checking],
@@ -323,6 +329,7 @@ async function createMonthTabs(spreadsheetId, metadata, monthKey) {
         ['תקציב הכרחי', carry.essential],
         ['תקציב מותרות', carry.discretionary],
         ['חיובים מחודש קודם', carry.previousCharges],
+        ['יתרת ארנק התחלתית', carry.wallet],
       ],
     })
   }
@@ -447,10 +454,11 @@ export async function fetchSummary() {
     a1(tabs.summary, 'B5'),
     a1(tabs.summary, 'B6'),
     a1(tabs.summary, 'B7'),
+    a1(tabs.summary, 'B8'),
   ]
   const qs = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
   const data = await googleRequest(`${BASE}/${spreadsheetId}/values:batchGet?${qs}`)
-  const [checking, credit, trackingStartDate, essential, discretionary, previousCharges] = data.valueRanges.map(
+  const [checking, credit, trackingStartDate, essential, discretionary, previousCharges, wallet] = data.valueRanges.map(
     vr => vr.values?.[0]?.[0] ?? ''
   )
 
@@ -480,6 +488,18 @@ export async function fetchSummary() {
     )
   }
 
+  // Existing monthly sheets created before wallet tracking won't have B8 yet.
+  if (wallet === '') {
+    const walletRange = a1(tabs.summary, 'A8:B8')
+    await googleRequest(
+      `${BASE}/${spreadsheetId}/values/${encodeURIComponent(walletRange)}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ values: [['יתרת ארנק התחלתית', 0]] }),
+      }
+    )
+  }
+
   return {
     checking,
     credit,
@@ -487,6 +507,7 @@ export async function fetchSummary() {
     essential,
     discretionary,
     previousCharges: previousCharges === '' ? 0 : previousCharges,
+    wallet: wallet === '' ? 0 : wallet,
   }
 }
 

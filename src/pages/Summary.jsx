@@ -13,6 +13,7 @@ export default function Summary() {
     credit: '',
     essential: '',
     discretionary: '',
+    wallet: '',
   })
   const [savingSettings, setSavingSettings] = useState(false)
 
@@ -47,6 +48,7 @@ export default function Summary() {
       ['B3', settingsForm.credit],
       ['B5', settingsForm.essential],
       ['B6', settingsForm.discretionary],
+      ['B8', settingsForm.wallet],
     ].filter(([, value]) => value !== '')
 
     if (updates.length === 0) return
@@ -62,6 +64,7 @@ export default function Summary() {
         credit: '',
         essential: '',
         discretionary: '',
+        wallet: '',
       })
 
       await load()
@@ -73,7 +76,7 @@ export default function Summary() {
   if (loading) return <div style={styles.center}>טוען...</div>
 
   const now = new Date()
-  const { checking, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(now)
+  const { checking, wallet, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(now)
   const estimatedAfterAllCharges = checking - credit
   const essentialBudget = Number(summary.essential) || 0
   const discretionaryBudget = Number(summary.discretionary) || 0
@@ -88,6 +91,11 @@ export default function Summary() {
 
       <div style={styles.primaryGrid}>
         <SummaryCard label="יתרת עו״ש" value={`${checking.toFixed(0)} ₪`} />
+        <SummaryCard
+          label="יתרת ארנק"
+          value={`${wallet.toFixed(0)} ₪`}
+          hint="המזומן שנמצא בארנק כרגע"
+        />
 
         <SummaryCard
           label="אשראי שטרם ירד"
@@ -156,6 +164,11 @@ export default function Summary() {
             label="תקציב מותרות"
             value={settingsForm.discretionary}
             onChange={value => updateForm('discretionary', value)}
+          />
+          <ManualRow
+            label="יתרת מזומן בארנק בתחילת המעקב"
+            value={settingsForm.wallet}
+            onChange={value => updateForm('wallet', value)}
           />
 
           <button

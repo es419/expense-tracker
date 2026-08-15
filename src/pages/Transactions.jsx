@@ -55,6 +55,10 @@ export default function Transactions() {
   if (loading) return <div style={styles.center}>טוען...</div>
   if (error) return <div style={styles.center}>שגיאה: {error}</div>
 
+  const totalExpenses = transactions
+    .filter(t => t.type === 'הוצאה')
+    .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
+
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>תנועות · {formatHebrewMonth()}</h2>
@@ -69,8 +73,20 @@ export default function Transactions() {
             <div style={styles.meta}>{transactionMeta(t)}</div>
           </div>
           <div style={styles.actions}>
-            <div style={t.type === 'הכנסה' ? styles.income : styles.expense}>
-              {t.type === 'הכנסה' ? '+' : '-'}{t.amount} ₪
+            <div
+              style={
+                t.type === 'הכנסה'
+                  ? styles.income
+                  : t.type === 'העברה לארנק'
+                    ? styles.transfer
+                    : styles.expense
+              }
+            >
+              {t.type === 'הכנסה'
+                ? `+${t.amount} ₪`
+                : t.type === 'העברה לארנק'
+                  ? `↔ ${t.amount} ₪`
+                  : `-${t.amount} ₪`}
             </div>
             <button
               type="button"
@@ -87,6 +103,11 @@ export default function Transactions() {
           </div>
         </div>
       ))}
+
+      <div style={styles.totalBox}>
+        <span style={styles.totalLabel}>סך הכול הוצאות</span>
+        <strong style={styles.totalValue}>{totalExpenses.toFixed(0)} ₪</strong>
+      </div>
     </div>
   )
 }
@@ -102,7 +123,11 @@ const styles = {
   meta: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' },
   income: { color: 'var(--income)', fontWeight: '600', whiteSpace: 'nowrap' },
   expense: { color: 'var(--expense)', fontWeight: '600', whiteSpace: 'nowrap' },
+  transfer: { color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' },
   deleteBtn: { padding: '6px 9px', border: '1px solid color-mix(in srgb, var(--expense) 35%, transparent)', borderRadius: '7px', background: 'var(--danger-bg)', color: 'var(--expense)', cursor: 'pointer', fontSize: '12px' },
   center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' },
   empty: { textAlign: 'center', color: 'var(--text-muted)', marginTop: '40px' },
+  totalBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '18px', padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: 'var(--shadow)' },
+  totalLabel: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: 600 },
+  totalValue: { fontSize: '20px', whiteSpace: 'nowrap' },
 }

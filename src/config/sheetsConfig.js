@@ -23,9 +23,9 @@ export const TRANSACTION_HEADERS = [
   'תאריך חיוב',
 ]
 
-export const TRANSACTION_TYPES = ['הוצאה', 'הכנסה']
+export const TRANSACTION_TYPES = ['הוצאה', 'הכנסה', 'העברה לארנק']
 export const BUDGET_TYPES = ['הכרחי', 'מותרות']
-export const PAYMENT_METHODS = ['אשראי', 'מזומן']
+export const PAYMENT_METHODS = ['אשראי', 'עו״ש', 'מזומן']
 export const CATEGORIES = [
   'אוכל',
   'פורנו',

@@ -82,6 +82,7 @@ export function isOnOrBefore(date, referenceDate = new Date()) {
 
 export function computeFinancialState(summary, transactions, referenceDate = new Date()) {
   let checking = Number(summary?.checking) || 0
+  let wallet = Number(summary?.wallet) || 0
   let credit = 0
   let essentialSpent = 0
   let discretionarySpent = 0
@@ -108,8 +109,15 @@ export function computeFinancialState(summary, transactions, referenceDate = new
     const amount = Math.abs(Number(t.amount) || 0)
     if (!amount) continue
 
+    if (t.type === 'העברה לארנק') {
+      checking -= amount
+      wallet += amount
+      continue
+    }
+
     if (t.type === 'הכנסה') {
-      checking += amount
+      if (t.paymentMethod === 'מזומן') wallet += amount
+      else checking += amount
       continue
     }
 
@@ -125,11 +133,14 @@ export function computeFinancialState(summary, transactions, referenceDate = new
         credit += amount
         if (!nextCreditCharge || chargeDate < nextCreditCharge) nextCreditCharge = chargeDate
       }
+    } else if (t.paymentMethod === 'מזומן') {
+      // Cash expenses reduce the physical wallet balance immediately.
+      wallet -= amount
     } else {
-      // Cash/direct expenses reduce checking immediately.
+      // Direct checking-account expenses (bank transfer/debit/etc.) reduce checking immediately.
       checking -= amount
     }
   }
 
-  return { checking, credit, essentialSpent, discretionarySpent, nextCreditCharge }
+  return { checking, wallet, credit, essentialSpent, discretionarySpent, nextCreditCharge }
 }

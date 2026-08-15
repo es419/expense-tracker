@@ -45,6 +45,7 @@ export default function AddTransaction() {
     if (!amount || Number(amount) <= 0) return alert('נא להכניס סכום תקין')
     setSaving(true)
     try {
+      const isWalletTransfer = type === 'העברה לארנק'
       const chargeDate = type === 'הוצאה' && paymentMethod === 'אשראי'
         ? automaticChargeDate
         : date
@@ -53,9 +54,9 @@ export default function AddTransaction() {
         date,
         type,
         amount: Number(amount),
-        category,
-        budget,
-        paymentMethod,
+        category: isWalletTransfer ? 'העברה לארנק' : category,
+        budget: isWalletTransfer ? '' : budget,
+        paymentMethod: isWalletTransfer ? 'עו״ש' : paymentMethod,
         chargeDate,
       })
       navigate('/transactions')
@@ -84,19 +85,40 @@ export default function AddTransaction() {
 
       <div style={styles.field}>
         <label style={styles.label}>סכום (₪)</label>
-        <input style={styles.input} type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
+        <input
+          style={{ ...styles.input, ...styles.amountInput }}
+          type="number"
+          min="0"
+          step="0.01"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          placeholder="0"
+        />
       </div>
 
       <ChipRow label="סוג" options={TRANSACTION_TYPES} value={type} onChange={setType} />
-      <ChipRow label="קטגוריה" options={CATEGORIES} value={category} onChange={setCategory} />
-      <ChipRow label="תקציב" options={BUDGET_TYPES} value={budget} onChange={setBudget} />
-      <ChipRow label="אמצעי תשלום" options={PAYMENT_METHODS} value={paymentMethod} onChange={setPaymentMethod} />
+
+      {type !== 'העברה לארנק' && (
+        <>
+          <ChipRow label="קטגוריה" options={CATEGORIES} value={category} onChange={setCategory} />
+          <ChipRow label="תקציב" options={BUDGET_TYPES} value={budget} onChange={setBudget} />
+          <ChipRow label="אמצעי תשלום" options={PAYMENT_METHODS} value={paymentMethod} onChange={setPaymentMethod} />
+        </>
+      )}
+
+      {type === 'העברה לארנק' && (
+        <div style={styles.billingInfo}>
+          הסכום יירד מיד מהעו״ש ויתווסף ליתרת הארנק
+        </div>
+      )}
 
       {type === 'הוצאה' && (
         <div style={styles.billingInfo}>
           {paymentMethod === 'אשראי'
             ? `יתווסף לאשראי ויירד מהעו״ש ב־${formatHebrewDate(automaticChargeDate)}`
-            : 'יירד מיתרת העו״ש מיד'}
+            : paymentMethod === 'מזומן'
+              ? 'יירד מיתרת הארנק מיד'
+              : 'יירד מיתרת העו״ש מיד'}
         </div>
       )}
 
@@ -108,16 +130,115 @@ export default function AddTransaction() {
 }
 
 const styles = {
-  container: { padding: '16px', paddingBottom: '80px', direction: 'rtl' },
-  title: { marginBottom: '16px' },
-  field: { marginBottom: '16px' },
-  label: { display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' },
-  input: { width: '100%', minWidth: 0, maxWidth: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '16px', boxSizing: 'border-box', background: 'var(--surface)', color: 'var(--text)', outline: 'none', display: 'block' },
-  dateInputWrap: { width: '100%', minWidth: 0, maxWidth: '100%', overflow: 'hidden', borderRadius: '8px' },
-  dateInput: { minWidth: 0, maxWidth: '100%', direction: 'rtl' },
-  chipRow: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
-  chip: { padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: '14px' },
-  chipSelected: { padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--primary)', background: 'var(--primary)', color: 'var(--primary-text)', cursor: 'pointer', fontSize: '14px' },
-  billingInfo: { padding: '12px', marginBottom: '12px', borderRadius: '8px', background: 'var(--surface-soft)', fontSize: '14px' },
-  saveBtn: { width: '100%', padding: '14px', background: 'var(--button)', color: 'var(--button-text)', border: 'none', borderRadius: '8px', fontSize: '16px', cursor: 'pointer', marginTop: '8px' },
+  container: {
+    padding: '16px',
+    paddingBottom: '80px',
+    direction: 'rtl',
+    maxWidth: '480px',
+    margin: '0 auto',
+  },
+  title: {
+    marginBottom: '18px',
+    fontSize: '28px',
+    lineHeight: 1.2,
+  },
+  field: {
+    marginBottom: '18px',
+  },
+  label: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: 'var(--text-muted)',
+    marginBottom: '8px',
+  },
+  input: {
+    width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
+    minHeight: '64px',
+    padding: '0 18px',
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
+    fontSize: '17px',
+    fontWeight: 500,
+    lineHeight: 1.2,
+    boxSizing: 'border-box',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    outline: 'none',
+    display: 'block',
+    textAlign: 'center',
+    WebkitAppearance: 'none',
+  },
+  dateInputWrap: {
+    width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
+    overflow: 'hidden',
+    borderRadius: '14px',
+  },
+  dateInput: {
+    minWidth: 0,
+    maxWidth: '100%',
+    direction: 'rtl',
+    textAlign: 'center',
+    letterSpacing: '0.2px',
+  },
+  amountInput: {
+    textAlign: 'center',
+  },
+  chipRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+  },
+  chip: {
+    minHeight: '46px',
+    padding: '0 18px',
+    borderRadius: '24px',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    cursor: 'pointer',
+    fontSize: '15px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipSelected: {
+    minHeight: '46px',
+    padding: '0 18px',
+    borderRadius: '24px',
+    border: '1px solid var(--primary)',
+    background: 'var(--primary)',
+    color: 'var(--primary-text)',
+    cursor: 'pointer',
+    fontSize: '15px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  billingInfo: {
+    padding: '14px 16px',
+    marginBottom: '14px',
+    borderRadius: '12px',
+    background: 'var(--surface-soft)',
+    fontSize: '15px',
+    textAlign: 'center',
+  },
+  saveBtn: {
+    width: '100%',
+    minHeight: '56px',
+    padding: '14px',
+    background: 'var(--button)',
+    color: 'var(--button-text)',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '17px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    marginTop: '8px',
+  },
 }
+
