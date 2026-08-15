@@ -89,7 +89,10 @@ export function computeFinancialState(summary, transactions, referenceDate = new
 
   // Existing card balance at the start of a month remains outstanding until
   // the first 10th on/after that month's tracking start.
-  const initialCredit = Math.max(Number(summary?.credit) || 0, 0)
+  const manualInitialCredit = Math.max(Number(summary?.credit) || 0, 0)
+  const previousMonthCharges = Math.max(Number(summary?.previousCharges) || 0, 0)
+  const initialCredit = manualInitialCredit + previousMonthCharges
+
   if (initialCredit > 0) {
     const trackingStart = parseDate(summary?.trackingStartDate) ?? new Date()
     const initialChargeDate = getCreditChargeDate(trackingStart)

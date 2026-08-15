@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react'
 import { fetchTransactions, fetchSummary, updateSummaryCell } from '../services/sheetsApi'
+import { signOut } from '../services/googleAuth'
 import { computeFinancialState, formatHebrewDate, formatHebrewMonth } from '../utils/billing'
 
 export default function Summary() {
   const [summary, setSummary] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsForm, setSettingsForm] = useState({
+    checking: '',
+    credit: '',
+    essential: '',
+    discretionary: '',
+  })
+  const [savingSettings, setSavingSettings] = useState(false)
 
   useEffect(() => {
     load()
@@ -26,99 +35,403 @@ export default function Summary() {
     return computeFinancialState(summary, transactions, referenceDate)
   }
 
-  async function saveCell(cell, value) {
-    await updateSummaryCell(cell, value)
-    await load()
+  function updateForm(field, value) {
+    setSettingsForm(current => ({ ...current, [field]: value }))
+  }
+
+  async function saveMonthSettings() {
+    if (savingSettings) return
+
+    const updates = [
+      ['B2', settingsForm.checking],
+      ['B3', settingsForm.credit],
+      ['B5', settingsForm.essential],
+      ['B6', settingsForm.discretionary],
+    ].filter(([, value]) => value !== '')
+
+    if (updates.length === 0) return
+
+    try {
+      setSavingSettings(true)
+
+      // Save only fields the user actually changed, then reload once.
+      await Promise.all(updates.map(([cell, value]) => updateSummaryCell(cell, value)))
+
+      setSettingsForm({
+        checking: '',
+        credit: '',
+        essential: '',
+        discretionary: '',
+      })
+
+      await load()
+    } finally {
+      setSavingSettings(false)
+    }
   }
 
   if (loading) return <div style={styles.center}>טוען...</div>
 
   const now = new Date()
   const { checking, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(now)
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  const { checking: estimatedEndOfMonthChecking } = compute(endOfMonth)
+  const estimatedAfterAllCharges = checking - credit
   const essentialBudget = Number(summary.essential) || 0
   const discretionaryBudget = Number(summary.discretionary) || 0
+  const previousCharges = Number(summary.previousCharges) || 0
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>סיכום · {formatHebrewMonth()}</h2>
-
-      <div style={styles.card}>
-        <div style={styles.cardLabel}>יתרת עו״ש</div>
-        <div style={styles.cardValue}>{checking.toFixed(0)} ₪</div>
+      <div style={styles.header}>
+        <h2 style={styles.title}>סיכום</h2>
+        <div style={styles.month}>{formatHebrewMonth()}</div>
       </div>
 
-      <div style={styles.card}>
-        <div style={styles.cardLabel}>עו״ש משוער בסוף החודש</div>
-        <div style={styles.cardValue}>{estimatedEndOfMonthChecking.toFixed(0)} ₪</div>
-        <div style={styles.cardHint}>
-          לפי התנועות שכבר הוזנו וחיובי האשראי שצפויים לרדת עד סוף החודש
+      <div style={styles.primaryGrid}>
+        <SummaryCard label="יתרת עו״ש" value={`${checking.toFixed(0)} ₪`} />
+
+        <SummaryCard
+          label="אשראי שטרם ירד"
+          value={`${credit.toFixed(0)} ₪`}
+          hint={
+            credit > 0 && nextCreditCharge
+              ? `חיוב קרוב: ${formatHebrewDate(nextCreditCharge)}`
+              : 'אין חיובים ממתינים'
+          }
+        />
+
+        <SummaryCard
+          label="עו״ש משוער לאחר כל החיובים"
+          value={`${estimatedAfterAllCharges.toFixed(0)} ₪`}
+          hint="לאחר הפחתת כל האשראי שטרם ירד"
+          featured
+        />
+      </div>
+
+      <div style={styles.sectionHeader}>
+        <h3 style={styles.sectionHeading}>תקציבים</h3>
+      </div>
+
+      <div style={styles.budgetCard}>
+        <BudgetRow title="הכרחי" spent={essentialSpent} budget={essentialBudget} />
+        <div style={styles.divider} />
+        <BudgetRow title="מותרות" spent={discretionarySpent} budget={discretionaryBudget} />
+      </div>
+
+      <button
+        type="button"
+        style={styles.settingsToggle}
+        onClick={() => setSettingsOpen(open => !open)}
+        aria-expanded={settingsOpen}
+      >
+        <span>הגדרות חודש</span>
+        <span style={styles.chevron}>{settingsOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {settingsOpen && (
+        <div style={styles.settingsPanel}>
+          {previousCharges > 0 && (
+            <ReadOnlyRow
+              label="חיובים מחודש קודם"
+              value={previousCharges}
+              hint="הועבר אוטומטית מהאשראי שטרם ירד בחודש הקודם"
+            />
+          )}
+
+          <ManualRow
+            label='יתרת עו״ש בתחילת המעקב'
+            value={settingsForm.checking}
+            onChange={value => updateForm('checking', value)}
+          />
+          <ManualRow
+            label="אשראי שכבר היה קיים בתחילת המעקב"
+            value={settingsForm.credit}
+            onChange={value => updateForm('credit', value)}
+          />
+          <ManualRow
+            label="תקציב הכרחי"
+            value={settingsForm.essential}
+            onChange={value => updateForm('essential', value)}
+          />
+          <ManualRow
+            label="תקציב מותרות"
+            value={settingsForm.discretionary}
+            onChange={value => updateForm('discretionary', value)}
+          />
+
+          <button
+            style={styles.saveAllBtn}
+            onClick={saveMonthSettings}
+            disabled={savingSettings || !Object.values(settingsForm).some(value => value !== '')}
+          >
+            {savingSettings ? 'שומר…' : 'שמור שינויים'}
+          </button>
+
+          <button style={styles.logoutBtn} onClick={signOut}>התנתק</button>
         </div>
-      </div>
-
-      <div style={styles.card}>
-        <div style={styles.cardLabel}>אשראי שטרם ירד מהעו״ש</div>
-        <div style={styles.cardValue}>{credit.toFixed(0)} ₪</div>
-        <div style={styles.cardHint}>
-          {credit > 0 && nextCreditCharge
-            ? `החיוב הקרוב: ${formatHebrewDate(nextCreditCharge)}`
-            : 'אין כרגע חיובי אשראי ממתינים'}
-        </div>
-      </div>
-
-      <BudgetBar title="תקציב הכרחי" spent={essentialSpent} budget={essentialBudget} />
-      <BudgetBar title="תקציב מותרות" spent={discretionarySpent} budget={discretionaryBudget} />
-
-      <h3 style={styles.sectionTitle}>ערכי פתיחה</h3>
-
-      <ManualRow label='יתרת עו״ש בתחילת המעקב' value={summary.checking} onSave={v => saveCell('B2', v)} />
-      <ManualRow label="אשראי שכבר היה קיים בתחילת המעקב" value={summary.credit} onSave={v => saveCell('B3', v)} />
-      <ManualRow label="תקציב הכרחי" value={summary.essential} onSave={v => saveCell('B5', v)} />
-      <ManualRow label="תקציב מותרות" value={summary.discretionary} onSave={v => saveCell('B6', v)} />
+      )}
     </div>
   )
 }
 
-function BudgetBar({ title, spent, budget }) {
+function SummaryCard({ label, value, hint, featured = false }) {
+  return (
+    <div style={{ ...styles.summaryCard, ...(featured ? styles.featuredCard : {}) }}>
+      <div style={styles.cardLabel}>{label}</div>
+      <div style={styles.cardValue}>{value}</div>
+      {hint ? <div style={styles.cardHint}>{hint}</div> : null}
+    </div>
+  )
+}
+
+function BudgetRow({ title, spent, budget }) {
   const pct = budget > 0 ? Math.min(spent / budget, 1) : 0
   const over = budget > 0 && spent > budget
+
   return (
-    <div style={styles.card}>
-      <div style={styles.cardLabel}>{title}</div>
-      <div style={styles.budgetValue}>{spent.toFixed(0)} / {budget.toFixed(0)} ₪</div>
+    <div style={styles.budgetRow}>
+      <div style={styles.budgetTopLine}>
+        <span style={styles.budgetTitle}>{title}</span>
+        <span style={styles.budgetValue}>{spent.toFixed(0)} / {budget.toFixed(0)} ₪</span>
+      </div>
       <div style={styles.barBg}>
-        <div style={{ ...styles.barFill, width: `${pct * 100}%`, background: over ? 'var(--expense)' : 'var(--primary)' }} />
+        <div
+          style={{
+            ...styles.barFill,
+            width: `${pct * 100}%`,
+            background: over ? 'var(--expense)' : 'var(--primary)',
+          }}
+        />
       </div>
     </div>
   )
 }
 
-function ManualRow({ label, value, onSave }) {
-  const [local, setLocal] = useState(value ?? '')
+function ReadOnlyRow({ label, value, hint }) {
+  return (
+    <div style={styles.readOnlyRow}>
+      <div style={styles.readOnlyText}>
+        <span style={styles.manualLabel}>{label}</span>
+        {hint ? <span style={styles.readOnlyHint}>{hint}</span> : null}
+      </div>
+      <strong style={styles.readOnlyValue}>{value.toFixed(0)} ₪</strong>
+    </div>
+  )
+}
+
+function ManualRow({ label, value, onChange }) {
   return (
     <div style={styles.manualRow}>
       <span style={styles.manualLabel}>{label}</span>
-      <input style={styles.manualInput} value={local} onChange={e => setLocal(e.target.value)} type="number" />
-      <button style={styles.saveBtn} onClick={() => onSave(local)}>שמור</button>
+      <input
+        style={styles.manualInput}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        type="number"
+        inputMode="decimal"
+        placeholder="הזן ערך"
+      />
     </div>
   )
 }
 
 const styles = {
-  container: { padding: '16px', paddingBottom: '80px', direction: 'rtl' },
-  title: { marginBottom: '16px' },
-  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '12px', boxShadow: 'var(--shadow)' },
-  cardLabel: { fontSize: '13px', color: 'var(--text-muted)' },
-  cardValue: { fontSize: '22px', fontWeight: 'bold', marginTop: '4px' },
-  budgetValue: { fontSize: '22px', fontWeight: 'bold', marginTop: '4px', textAlign: 'right', direction: 'ltr', unicodeBidi: 'embed' },
-  cardHint: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' },
-  barBg: { height: '8px', background: 'var(--surface-strong)', borderRadius: '4px', marginTop: '8px', overflow: 'hidden' },
-  barFill: { height: '8px', borderRadius: '4px' },
-  sectionTitle: { marginTop: '24px', marginBottom: '12px' },
-  manualRow: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' },
-  manualLabel: { flex: 1, fontSize: '13px' },
-  manualInput: { width: '90px', padding: '6px', borderRadius: '6px', border: '1px solid var(--border)', textAlign: 'right', background: 'var(--surface)', color: 'var(--text)' },
-  saveBtn: { padding: '6px 12px', background: 'var(--button)', color: 'var(--button-text)', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' },
+  container: {
+    padding: '18px 16px 92px',
+    direction: 'rtl',
+    maxWidth: '480px',
+    margin: '0 auto',
+  },
+  header: {
+    marginBottom: '16px',
+  },
+  title: {
+    margin: 0,
+    fontSize: '26px',
+  },
+  month: {
+    marginTop: '2px',
+    color: 'var(--text-muted)',
+    fontSize: '13px',
+  },
+  primaryGrid: {
+    display: 'grid',
+    gap: '10px',
+  },
+  summaryCard: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '14px',
+    padding: '14px 16px',
+    boxShadow: 'var(--shadow)',
+  },
+  featuredCard: {
+    paddingTop: '16px',
+    paddingBottom: '16px',
+  },
+  cardLabel: {
+    fontSize: '13px',
+    color: 'var(--text-muted)',
+  },
+  cardValue: {
+    fontSize: '25px',
+    lineHeight: 1.2,
+    fontWeight: 750,
+    marginTop: '3px',
+  },
+  cardHint: {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    marginTop: '5px',
+  },
+  sectionHeader: {
+    marginTop: '22px',
+    marginBottom: '8px',
+  },
+  sectionHeading: {
+    margin: 0,
+    fontSize: '16px',
+  },
+  budgetCard: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '14px',
+    padding: '4px 14px',
+    boxShadow: 'var(--shadow)',
+  },
+  budgetRow: {
+    padding: '12px 0',
+  },
+  budgetTopLine: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  budgetTitle: {
+    fontSize: '14px',
+    fontWeight: 650,
+  },
+  budgetValue: {
+    fontSize: '15px',
+    fontWeight: 700,
+    textAlign: 'right',
+    direction: 'ltr',
+    unicodeBidi: 'embed',
+    whiteSpace: 'nowrap',
+  },
+  barBg: {
+    height: '6px',
+    background: 'var(--surface-strong)',
+    borderRadius: '999px',
+    marginTop: '8px',
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: '999px',
+  },
+  divider: {
+    height: '1px',
+    background: 'var(--border)',
+  },
+  settingsToggle: {
+    width: '100%',
+    marginTop: '16px',
+    padding: '13px 15px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 650,
+    fontSize: '14px',
+  },
+  chevron: {
+    color: 'var(--text-muted)',
+    fontSize: '10px',
+  },
+  settingsPanel: {
+    marginTop: '10px',
+    padding: '14px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '14px',
+    boxShadow: 'var(--shadow)',
+  },
+  manualRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '7px',
+    padding: '10px 0',
+    borderBottom: '1px solid var(--border)',
+  },
+  manualLabel: {
+    fontSize: '13px',
+  },
+  manualInput: {
+    width: '100%',
+    padding: '9px 10px',
+    borderRadius: '8px',
+    border: '1px solid var(--border)',
+    textAlign: 'right',
+    background: 'var(--bg)',
+    color: 'var(--text)',
+  },
+  readOnlyRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    marginBottom: '8px',
+    padding: '11px',
+    border: '1px solid var(--border)',
+    borderRadius: '10px',
+    background: 'var(--bg)',
+  },
+  readOnlyText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px',
+    minWidth: 0,
+  },
+  readOnlyHint: {
+    fontSize: '10px',
+    color: 'var(--text-muted)',
+  },
+  readOnlyValue: {
+    whiteSpace: 'nowrap',
+    fontSize: '14px',
+  },
+  saveAllBtn: {
+    width: '100%',
+    marginTop: '14px',
+    padding: '11px 14px',
+    background: 'var(--button)',
+    color: 'var(--button-text)',
+    border: 'none',
+    borderRadius: '9px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: '14px',
+  },
+  logoutBtn: {
+    width: '100%',
+    marginTop: '16px',
+    padding: '9px 12px',
+    background: 'transparent',
+    color: 'var(--expense)',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+  },
+  center: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '50vh',
+  },
 }

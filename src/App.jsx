@@ -74,11 +74,11 @@ function App() {
       <div className="app">
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
         <Routes>
-          <Route path="/" element={<Navigate to="/transactions" />} />
+          <Route path="/" element={<Navigate to="/add" replace />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/add" element={<AddTransaction />} />
           <Route path="/summary" element={<Summary />} />
-          <Route path="*" element={<Navigate to="/transactions" replace />} />
+          <Route path="*" element={<Navigate to="/add" replace />} />
         </Routes>
         <BottomNav />
       </div>

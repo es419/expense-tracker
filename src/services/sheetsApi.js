@@ -94,6 +94,7 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
   const trackingStartDate = values.trackingStartDate || toIsoDate()
   const essential = Number(values.essential) || 0
   const discretionary = Number(values.discretionary) || 0
+  const previousCharges = Math.max(Number(values.previousCharges) || 0, 0)
 
   await googleRequest(`${BASE}/${spreadsheetId}/values:batchUpdate`, {
     method: 'POST',
@@ -105,7 +106,7 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
           values: [TRANSACTION_HEADERS],
         },
         {
-          range: a1(tabs.summary, 'A1:B6'),
+          range: a1(tabs.summary, 'A1:B7'),
           values: [
             ['פריט', 'ערך'],
             ['יתרת עו"ש התחלתית', checking],
@@ -113,6 +114,7 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
             ['תאריך תחילת מעקב', trackingStartDate],
             ['תקציב הכרחי', essential],
             ['תקציב מותרות', discretionary],
+            ['חיובים מחודש קודם', previousCharges],
           ],
         },
       ],
@@ -195,14 +197,15 @@ async function readSummaryFromMonth(spreadsheetId, monthKey) {
     a1(tabs.summary, 'B4'),
     a1(tabs.summary, 'B5'),
     a1(tabs.summary, 'B6'),
+    a1(tabs.summary, 'B7'),
   ]
   const qs = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
   const data = await googleRequest(`${BASE}/${spreadsheetId}/values:batchGet?${qs}`)
-  const [checking, credit, trackingStartDate, essential, discretionary] = data.valueRanges.map(
+  const [checking, credit, trackingStartDate, essential, discretionary, previousCharges] = data.valueRanges.map(
     vr => vr.values?.[0]?.[0] ?? ''
   )
 
-  return { checking, credit, trackingStartDate, essential, discretionary }
+  return { checking, credit, trackingStartDate, essential, discretionary, previousCharges }
 }
 
 async function migrateLegacyTabs(spreadsheetId, metadata, monthKey) {
@@ -252,6 +255,7 @@ async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
       credit: 0,
       essential: 0,
       discretionary: 0,
+      previousCharges: 0,
     }
   }
 
@@ -262,6 +266,7 @@ async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
       credit: 0,
       essential: 0,
       discretionary: 0,
+      previousCharges: 0,
     }
   }
 
@@ -276,7 +281,8 @@ async function getCarryForward(spreadsheetId, metadata, currentMonthKey) {
 
   return {
     checking: state.checking,
-    credit: state.credit,
+    credit: 0,
+    previousCharges: state.credit,
     essential: Number(summary.essential) || 0,
     discretionary: Number(summary.discretionary) || 0,
   }
@@ -308,7 +314,7 @@ async function createMonthTabs(spreadsheetId, metadata, monthKey) {
   }
   if (missingSummary) {
     data.push({
-      range: a1(tabs.summary, 'A1:B6'),
+      range: a1(tabs.summary, 'A1:B7'),
       values: [
         ['פריט', 'ערך'],
         ['יתרת עו"ש התחלתית', carry.checking],
@@ -316,6 +322,7 @@ async function createMonthTabs(spreadsheetId, metadata, monthKey) {
         ['תאריך תחילת מעקב', toIsoDate(getMonthStart(monthKey))],
         ['תקציב הכרחי', carry.essential],
         ['תקציב מותרות', carry.discretionary],
+        ['חיובים מחודש קודם', carry.previousCharges],
       ],
     })
   }
@@ -439,10 +446,11 @@ export async function fetchSummary() {
     a1(tabs.summary, 'B4'),
     a1(tabs.summary, 'B5'),
     a1(tabs.summary, 'B6'),
+    a1(tabs.summary, 'B7'),
   ]
   const qs = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&')
   const data = await googleRequest(`${BASE}/${spreadsheetId}/values:batchGet?${qs}`)
-  const [checking, credit, trackingStartDate, essential, discretionary] = data.valueRanges.map(
+  const [checking, credit, trackingStartDate, essential, discretionary, previousCharges] = data.valueRanges.map(
     vr => vr.values?.[0]?.[0] ?? ''
   )
 
@@ -459,7 +467,27 @@ export async function fetchSummary() {
     )
   }
 
-  return { checking, credit, trackingStartDate: startDate, essential, discretionary }
+  // Existing monthly sheets created before this feature won't have B7 yet.
+  // Initialize it lazily so old data keeps working.
+  if (previousCharges === '') {
+    const previousRange = a1(tabs.summary, 'A7:B7')
+    await googleRequest(
+      `${BASE}/${spreadsheetId}/values/${encodeURIComponent(previousRange)}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ values: [['חיובים מחודש קודם', 0]] }),
+      }
+    )
+  }
+
+  return {
+    checking,
+    credit,
+    trackingStartDate: startDate,
+    essential,
+    discretionary,
+    previousCharges: previousCharges === '' ? 0 : previousCharges,
+  }
 }
 
 export async function updateSummaryCell(cell, value) {
