@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 
 const OPTIONS = [
-  { value: 'system', label: 'מערכת', icon: '◐', description: 'לפי הגדרת המכשיר' },
-  { value: 'light', label: 'בהיר', icon: '☀️', description: 'מצב בהיר תמיד' },
-  { value: 'dark', label: 'כהה', icon: '🌙', description: 'מצב כהה תמיד' },
+  { value: 'system', label: 'מערכת', description: 'לפי הגדרת המכשיר' },
+  { value: 'light', label: 'בהיר', description: 'מצב בהיר תמיד' },
+  { value: 'dark', label: 'כהה', description: 'מצב כהה תמיד' },
 ]
 
 export default function ThemeMenu({ value, onChange }) {
   const [open, setOpen] = useState(false)
+  const [showThemeOptions, setShowThemeOptions] = useState(false)
 
   useEffect(() => {
-    if (!open) return undefined
+    if (!open) {
+      setShowThemeOptions(false)
+      return undefined
+    }
 
     const onKeyDown = event => {
       if (event.key === 'Escape') setOpen(false)
@@ -20,12 +24,14 @@ export default function ThemeMenu({ value, onChange }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open])
 
+  const currentLabel = OPTIONS.find(option => option.value === value)?.label || 'מערכת'
+
   return (
     <>
       <button
         type="button"
-        aria-label="פתח תפריט תצוגה"
-        title="תצוגה"
+        aria-label="פתח תפריט"
+        title="תפריט"
         style={styles.menuButton}
         onClick={() => setOpen(true)}
       >
@@ -41,11 +47,15 @@ export default function ThemeMenu({ value, onChange }) {
           <aside
             role="dialog"
             aria-modal="true"
-            aria-label="הגדרות תצוגה"
+            aria-label="תפריט הגדרות"
             style={styles.drawer}
             onClick={event => event.stopPropagation()}
           >
             <div style={styles.header}>
+              <div style={styles.headerText}>
+                <div style={styles.title}>הגדרות</div>
+                <div style={styles.subtitle}>התאמה אישית של המראה</div>
+              </div>
               <button
                 type="button"
                 aria-label="סגור תפריט"
@@ -54,35 +64,43 @@ export default function ThemeMenu({ value, onChange }) {
               >
                 ×
               </button>
-              <div>
-                <div style={styles.title}>תצוגה</div>
-                <div style={styles.subtitle}>בחר מצב מראה</div>
-              </div>
             </div>
 
-            <div style={styles.options}>
-              {OPTIONS.map(option => {
-                const selected = value === option.value
+            <div style={styles.section}>
+              <button
+                type="button"
+                style={styles.sectionButton}
+                onClick={() => setShowThemeOptions(current => !current)}
+                aria-expanded={showThemeOptions}
+              >
+                <span style={styles.sectionMain}>
+                  <strong style={styles.sectionTitle}>הגדרת תצוגה</strong>
+                  <span style={styles.sectionValue}>{currentLabel}</span>
+                </span>
+                <span aria-hidden="true" style={{ ...styles.chevron, transform: showThemeOptions ? 'rotate(180deg)' : 'rotate(0deg)' }}>⌄</span>
+              </button>
 
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    style={selected ? styles.optionSelected : styles.option}
-                    onClick={() => {
-                      onChange(option.value)
-                      setOpen(false)
-                    }}
-                  >
-                    <span aria-hidden="true" style={styles.optionIcon}>{option.icon}</span>
-                    <span style={styles.optionText}>
-                      <strong style={styles.optionLabel}>{option.label}</strong>
-                      <span style={styles.optionDescription}>{option.description}</span>
-                    </span>
-                    <span aria-hidden="true" style={styles.check}>{selected ? '✓' : ''}</span>
-                  </button>
-                )
-              })}
+              {showThemeOptions && (
+                <div style={styles.optionsWrap}>
+                  {OPTIONS.map(option => {
+                    const selected = option.value === value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        style={selected ? styles.optionSelected : styles.option}
+                        onClick={() => onChange(option.value)}
+                      >
+                        <span style={styles.optionText}>
+                          <strong style={styles.optionLabel}>{option.label}</strong>
+                          <span style={styles.optionDescription}>{option.description}</span>
+                        </span>
+                        <span aria-hidden="true" style={styles.check}>{selected ? '✓' : ''}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </aside>
         </div>
@@ -96,7 +114,7 @@ const styles = {
     position: 'fixed',
     zIndex: 1000,
     top: 'max(12px, env(safe-area-inset-top))',
-    left: 'max(12px, calc((100vw - 480px) / 2 + 12px))',
+    right: 'max(12px, calc((100vw - 480px) / 2 + 12px))',
     width: '42px',
     height: '42px',
     borderRadius: '14px',
@@ -134,22 +152,27 @@ const styles = {
   drawer: {
     position: 'absolute',
     top: 0,
-    left: 0,
+    right: 0,
     bottom: 0,
     width: 'min(82vw, 320px)',
     padding: 'max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom))',
     background: 'var(--surface)',
     color: 'var(--text)',
-    borderRight: '1px solid var(--border)',
-    boxShadow: '18px 0 45px rgba(0, 0, 0, 0.24)',
+    borderLeft: '1px solid var(--border)',
+    boxShadow: '-18px 0 45px rgba(0, 0, 0, 0.24)',
     direction: 'rtl',
+    textAlign: 'right',
   },
   header: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: '12px',
     marginBottom: '22px',
+  },
+  headerText: {
+    display: 'grid',
+    gap: '4px',
   },
   closeButton: {
     width: '36px',
@@ -161,28 +184,28 @@ const styles = {
     fontSize: '24px',
     lineHeight: 1,
     cursor: 'pointer',
+    flexShrink: 0,
   },
   title: {
     fontSize: '20px',
     fontWeight: 800,
   },
   subtitle: {
-    marginTop: '3px',
     color: 'var(--text-muted)',
     fontSize: '13px',
   },
-  options: {
+  section: {
     display: 'grid',
     gap: '10px',
   },
-  option: {
+  sectionButton: {
     width: '100%',
-    minHeight: '64px',
-    display: 'grid',
-    gridTemplateColumns: '32px 1fr 24px',
+    minHeight: '62px',
+    display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '10px 12px',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '12px 14px',
     borderRadius: '14px',
     border: '1px solid var(--border)',
     background: 'var(--surface-soft)',
@@ -190,11 +213,50 @@ const styles = {
     textAlign: 'right',
     cursor: 'pointer',
   },
+  sectionMain: {
+    display: 'grid',
+    gap: '4px',
+    textAlign: 'right',
+  },
+  sectionTitle: {
+    fontSize: '15px',
+    fontWeight: 700,
+  },
+  sectionValue: {
+    fontSize: '13px',
+    color: 'var(--text-muted)',
+  },
+  chevron: {
+    fontSize: '16px',
+    color: 'var(--text-muted)',
+    transition: 'transform 0.18s ease',
+    flexShrink: 0,
+  },
+  optionsWrap: {
+    display: 'grid',
+    gap: '8px',
+    paddingTop: '2px',
+  },
+  option: {
+    width: '100%',
+    minHeight: '58px',
+    display: 'grid',
+    gridTemplateColumns: '1fr 24px',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 12px',
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    textAlign: 'right',
+    cursor: 'pointer',
+  },
   optionSelected: {
     width: '100%',
-    minHeight: '64px',
+    minHeight: '58px',
     display: 'grid',
-    gridTemplateColumns: '32px 1fr 24px',
+    gridTemplateColumns: '1fr 24px',
     alignItems: 'center',
     gap: '10px',
     padding: '10px 12px',
@@ -205,13 +267,10 @@ const styles = {
     textAlign: 'right',
     cursor: 'pointer',
   },
-  optionIcon: {
-    fontSize: '19px',
-    textAlign: 'center',
-  },
   optionText: {
     display: 'grid',
     gap: '3px',
+    textAlign: 'right',
   },
   optionLabel: {
     fontSize: '15px',
