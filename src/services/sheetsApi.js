@@ -12,7 +12,9 @@ import {
 } from '../utils/billing'
 
 const BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
+const DRIVE_FILES_BASE = 'https://www.googleapis.com/drive/v3/files'
 const SPREADSHEET_ID_KEY = 'expense_tracker_spreadsheet_id'
+const APP_SPREADSHEET_NAME = 'ניהול הוצאות'
 let creationPromise = null
 const monthPromises = new Map()
 
@@ -44,7 +46,7 @@ async function googleRequest(url, options = {}) {
 
   if (!res.ok) {
     const err = await res.text()
-    const error = new Error(`Sheets API error: ${err}`)
+    const error = new Error(`Google API error: ${err}`)
     error.status = res.status
     throw error
   }
@@ -124,6 +126,53 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
   })
 }
 
+
+async function findAppSpreadsheetInDrive() {
+  // drive.file only exposes files this app is allowed to use. After the first
+  // creation, the same Google account can therefore discover the same workbook
+  // from any browser/device without relying on localStorage.
+  const q = [
+    `name = '${APP_SPREADSHEET_NAME.replaceAll("'", "\\'")}'`,
+    "mimeType = 'application/vnd.google-apps.spreadsheet'",
+    "trashed = false",
+  ].join(' and ')
+
+  const params = new URLSearchParams({
+    q,
+    spaces: 'drive',
+    fields: 'files(id,name,createdTime,modifiedTime)',
+    orderBy: 'createdTime asc',
+    pageSize: '20',
+  })
+
+  const data = await googleRequest(`${DRIVE_FILES_BASE}?${params.toString()}`)
+  const files = data.files ?? []
+  return files[0]?.id ?? null
+}
+
+async function resolveSpreadsheet() {
+  // First try the device cache only as a speed optimization, never as the
+  // source of truth. If it is stale/deleted, fall back to Drive discovery.
+  const cached = localStorage.getItem(SPREADSHEET_ID_KEY)
+  if (cached) {
+    try {
+      await getMetadata(cached)
+      return cached
+    } catch (error) {
+      if (![403, 404].includes(error?.status)) throw error
+      localStorage.removeItem(SPREADSHEET_ID_KEY)
+    }
+  }
+
+  const discovered = await findAppSpreadsheetInDrive()
+  if (discovered) {
+    localStorage.setItem(SPREADSHEET_ID_KEY, discovered)
+    return discovered
+  }
+
+  return null
+}
+
 async function createSpreadsheet() {
   const monthKey = getMonthKey()
   const tabs = tabsForMonth(monthKey)
@@ -131,7 +180,7 @@ async function createSpreadsheet() {
   const created = await googleRequest(BASE, {
     method: 'POST',
     body: JSON.stringify({
-      properties: { title: 'ניהול הוצאות' },
+      properties: { title: APP_SPREADSHEET_NAME },
       sheets: [
         { properties: { title: tabs.transactions } },
         { properties: { title: tabs.summary } },
@@ -155,11 +204,15 @@ async function createSpreadsheet() {
 }
 
 export async function ensureSpreadsheet() {
-  const existing = localStorage.getItem(SPREADSHEET_ID_KEY)
-  if (existing) return existing
-
   if (!creationPromise) {
-    creationPromise = createSpreadsheet().finally(() => {
+    creationPromise = (async () => {
+      const existing = await resolveSpreadsheet()
+      if (existing) return existing
+
+      // If no app spreadsheet exists in Drive, create the single canonical one.
+      // Concurrent calls in this browser share this promise.
+      return createSpreadsheet()
+    })().finally(() => {
       creationPromise = null
     })
   }
