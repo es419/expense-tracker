@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { appendTransaction } from '../services/sheetsApi'
 import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '../config/sheetsConfig'
@@ -6,7 +6,7 @@ import { formatHebrewDate, formatHebrewMonth, formatIsoDate, getCreditChargeDate
 
 function ChipRow({ label, options, value, onChange }) {
   return (
-    <div style={styles.field}>
+    <div style={{ ...styles.field, ...styles.choiceField }}>
       <label style={styles.label}>{label}</label>
       <div style={styles.chipRow}>
         {options.map(opt => (
@@ -26,6 +26,7 @@ function ChipRow({ label, options, value, onChange }) {
 
 export default function AddTransaction() {
   const navigate = useNavigate()
+  const dateInputRef = useRef(null)
   const today = toIsoDate()
 
   const [date, setDate] = useState(today)
@@ -73,14 +74,23 @@ export default function AddTransaction() {
 
       <div style={styles.field}>
         <label style={styles.label}>תאריך</label>
-        <div style={styles.dateInputWrap}>
+        <button
+          type="button"
+          style={styles.dateButton}
+          onClick={() => {
+            if (dateInputRef.current?.showPicker) dateInputRef.current.showPicker()
+            else dateInputRef.current?.click()
+          }}
+        >
+          <span style={styles.dateButtonValue}>{formatHebrewDate(date)}</span>
           <input
-            style={{ ...styles.input, ...styles.dateInput }}
+            ref={dateInputRef}
+            style={styles.hiddenDateInput}
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
           />
-        </div>
+        </button>
       </div>
 
       <div style={styles.field}>
@@ -131,36 +141,38 @@ export default function AddTransaction() {
 
 const styles = {
   container: {
-    padding: '16px',
-    paddingBottom: '80px',
+    padding: '14px 16px 72px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
   title: {
-    marginBottom: '18px',
-    fontSize: '28px',
+    marginBottom: '14px',
+    fontSize: '22px',
     lineHeight: 1.2,
   },
   field: {
-    marginBottom: '18px',
+    marginBottom: '14px',
+  },
+  choiceField: {
+    marginBottom: '12px',
   },
   label: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: 600,
     color: 'var(--text-muted)',
-    marginBottom: '8px',
+    marginBottom: '6px',
   },
   input: {
     width: '100%',
     minWidth: 0,
     maxWidth: '100%',
-    minHeight: '64px',
-    padding: '0 18px',
+    minHeight: '56px',
+    padding: '0 16px',
     borderRadius: '14px',
     border: '1px solid var(--border)',
-    fontSize: '17px',
+    fontSize: '16px',
     fontWeight: 500,
     lineHeight: 1.2,
     boxSizing: 'border-box',
@@ -171,19 +183,36 @@ const styles = {
     textAlign: 'center',
     WebkitAppearance: 'none',
   },
-  dateInputWrap: {
+  dateButton: {
     width: '100%',
-    minWidth: 0,
-    maxWidth: '100%',
-    overflow: 'hidden',
+    minHeight: '56px',
+    padding: '0 16px',
     borderRadius: '14px',
+    border: '1px solid var(--border)',
+    boxSizing: 'border-box',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    cursor: 'pointer',
   },
-  dateInput: {
-    minWidth: 0,
-    maxWidth: '100%',
-    direction: 'rtl',
+  dateButtonValue: {
+    fontSize: '16px',
+    fontWeight: 500,
+    lineHeight: 1.2,
     textAlign: 'center',
-    letterSpacing: '0.2px',
+    whiteSpace: 'nowrap',
+  },
+  hiddenDateInput: {
+    position: 'absolute',
+    inset: 0,
+    opacity: 0,
+    width: '100%',
+    height: '100%',
+    cursor: 'pointer',
   },
   amountInput: {
     textAlign: 'center',
@@ -191,54 +220,63 @@ const styles = {
   chipRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '10px',
+    gap: '8px',
+    alignItems: 'center',
   },
   chip: {
-    minHeight: '46px',
-    padding: '0 18px',
-    borderRadius: '24px',
+    minHeight: '40px',
+    padding: '0 15px',
+    borderRadius: '999px',
     border: '1px solid var(--border)',
     background: 'var(--surface)',
     color: 'var(--text)',
     cursor: 'pointer',
-    fontSize: '15px',
+    fontSize: '14px',
+    fontWeight: 500,
+    lineHeight: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset',
   },
   chipSelected: {
-    minHeight: '46px',
-    padding: '0 18px',
-    borderRadius: '24px',
+    minHeight: '40px',
+    padding: '0 15px',
+    borderRadius: '999px',
     border: '1px solid var(--primary)',
     background: 'var(--primary)',
     color: 'var(--primary-text)',
     cursor: 'pointer',
-    fontSize: '15px',
+    fontSize: '14px',
+    fontWeight: 700,
+    lineHeight: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 6px 16px rgba(37, 99, 235, 0.18)',
   },
   billingInfo: {
-    padding: '14px 16px',
-    marginBottom: '14px',
+    padding: '10px 12px',
+    marginBottom: '10px',
     borderRadius: '12px',
     background: 'var(--surface-soft)',
-    fontSize: '15px',
+    fontSize: '14px',
     textAlign: 'center',
   },
   saveBtn: {
     width: '100%',
-    minHeight: '56px',
-    padding: '14px',
+    minHeight: '50px',
+    padding: '12px',
     background: 'var(--button)',
     color: 'var(--button-text)',
     border: 'none',
     borderRadius: '12px',
-    fontSize: '17px',
+    fontSize: '16px',
     fontWeight: 700,
     cursor: 'pointer',
-    marginTop: '8px',
+    marginTop: '4px',
   },
 }
 
