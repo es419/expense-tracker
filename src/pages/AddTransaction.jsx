@@ -72,7 +72,14 @@ export default function AddTransaction() {
 
       <div style={styles.field}>
         <label style={styles.label}>תאריך</label>
-        <input style={styles.input} type="date" value={date} onChange={e => setDate(e.target.value)} />
+        <div style={styles.dateInputWrap}>
+          <input
+            style={{ ...styles.input, ...styles.dateInput }}
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+          />
+        </div>
       </div>
 
       <div style={styles.field}>
@@ -105,7 +112,9 @@ const styles = {
   title: { marginBottom: '16px' },
   field: { marginBottom: '16px' },
   label: { display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' },
-  input: { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '16px', boxSizing: 'border-box', background: 'var(--surface)', color: 'var(--text)', outline: 'none' },
+  input: { width: '100%', minWidth: 0, maxWidth: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '16px', boxSizing: 'border-box', background: 'var(--surface)', color: 'var(--text)', outline: 'none', display: 'block' },
+  dateInputWrap: { width: '100%', minWidth: 0, maxWidth: '100%', overflow: 'hidden', borderRadius: '8px' },
+  dateInput: { minWidth: 0, maxWidth: '100%', direction: 'rtl' },
   chipRow: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
   chip: { padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', cursor: 'pointer', fontSize: '14px' },
   chipSelected: { padding: '6px 14px', borderRadius: '20px', border: '1px solid var(--primary)', background: 'var(--primary)', color: 'var(--primary-text)', cursor: 'pointer', fontSize: '14px' },
