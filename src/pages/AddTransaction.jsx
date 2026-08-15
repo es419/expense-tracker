@@ -36,7 +36,7 @@ export default function AddTransaction() {
   const [type, setType] = useState('הוצאה')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
-  const [budget, setBudget] = useState(BUDGET_TYPES[0])
+  const [budget, setBudget] = useState('')
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0])
   const [saving, setSaving] = useState(false)
 
