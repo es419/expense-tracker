@@ -1,15 +1,22 @@
-Cross-device sync fix
+Cross-device sync - canonical Drive config
 
-This version no longer treats localStorage as the source of truth for the Google Sheet.
-On every device it:
-1. Uses the cached spreadsheet ID only if it still exists.
-2. Otherwise searches Google Drive for the app-created "ניהול הוצאות" spreadsheet.
-3. Reuses that file when found.
-4. Creates a new one only when none exists.
+This version fixes the remaining cross-device issue.
 
-IMPORTANT one-time Google Cloud step:
-Enable the Google Drive API for the same Google Cloud project used by the app.
-The OAuth scope now also includes:
-https://www.googleapis.com/auth/drive.file
+How it works:
+- A private config file is stored in Google Drive appDataFolder.
+- That config contains the ONE canonical spreadsheet ID.
+- Every device signed into the same Google account reads that same ID.
+- localStorage is no longer used to decide which spreadsheet is canonical.
+- If no config exists yet, the app adopts the most recently modified non-trashed
+  "ניהול הוצאות" workbook, or creates a new workbook if none exists.
 
-After deploying, sign out and sign in again once so Google can grant the new scope.
+One-time setup:
+1. Enable Google Drive API in the same Google Cloud project.
+2. Deploy this version.
+3. Sign out of the app and sign in again on each device once.
+   Google must grant the new drive.appdata scope.
+
+Recommended clean reset:
+If you do not need any old data, delete old "ניהול הוצאות" files first,
+then deploy and sign in on ONE device first. Let it create the workbook.
+After that, sign in on the other devices.

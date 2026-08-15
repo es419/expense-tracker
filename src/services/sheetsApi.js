@@ -13,8 +13,10 @@ import {
 
 const BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 const DRIVE_FILES_BASE = 'https://www.googleapis.com/drive/v3/files'
+const DRIVE_UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3/files'
 const SPREADSHEET_ID_KEY = 'expense_tracker_spreadsheet_id'
 const APP_SPREADSHEET_NAME = 'ניהול הוצאות'
+const APP_CONFIG_NAME = 'expense-tracker-config.json'
 let creationPromise = null
 const monthPromises = new Map()
 
@@ -127,10 +129,64 @@ async function writeInitialMonthValues(spreadsheetId, tabs, values = {}) {
 }
 
 
+async function listAppConfigFiles() {
+  const params = new URLSearchParams({
+    spaces: 'appDataFolder',
+    q: `name = '${APP_CONFIG_NAME}' and trashed = false`,
+    fields: 'files(id,name,createdTime,modifiedTime)',
+    orderBy: 'modifiedTime desc',
+    pageSize: '10',
+  })
+
+  const data = await googleRequest(`${DRIVE_FILES_BASE}?${params.toString()}`)
+  return data.files ?? []
+}
+
+async function readCanonicalSpreadsheetId() {
+  const configs = await listAppConfigFiles()
+  const configFile = configs[0]
+  if (!configFile) return { configFileId: null, spreadsheetId: null }
+
+  try {
+    const data = await googleRequest(`${DRIVE_FILES_BASE}/${configFile.id}?alt=media`)
+    return {
+      configFileId: configFile.id,
+      spreadsheetId: typeof data?.spreadsheetId === 'string' ? data.spreadsheetId : null,
+    }
+  } catch {
+    return { configFileId: configFile.id, spreadsheetId: null }
+  }
+}
+
+async function writeCanonicalSpreadsheetId(spreadsheetId, existingConfigFileId = null) {
+  let configFileId = existingConfigFileId
+
+  if (!configFileId) {
+    const created = await googleRequest(`${DRIVE_FILES_BASE}?fields=id`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: APP_CONFIG_NAME,
+        parents: ['appDataFolder'],
+        mimeType: 'application/json',
+      }),
+    })
+    configFileId = created.id
+  }
+
+  await googleRequest(
+    `${DRIVE_UPLOAD_BASE}/${configFileId}?uploadType=media`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spreadsheetId }),
+    }
+  )
+
+  // Local storage is now only a cache for debugging/speed; Drive appData is canonical.
+  localStorage.setItem(SPREADSHEET_ID_KEY, spreadsheetId)
+}
+
 async function findAppSpreadsheetInDrive() {
-  // drive.file only exposes files this app is allowed to use. After the first
-  // creation, the same Google account can therefore discover the same workbook
-  // from any browser/device without relying on localStorage.
   const q = [
     `name = '${APP_SPREADSHEET_NAME.replaceAll("'", "\\'")}'`,
     "mimeType = 'application/vnd.google-apps.spreadsheet'",
@@ -141,39 +197,49 @@ async function findAppSpreadsheetInDrive() {
     q,
     spaces: 'drive',
     fields: 'files(id,name,createdTime,modifiedTime)',
-    orderBy: 'createdTime asc',
+    // If old duplicates still exist, prefer the one most recently used/modified.
+    orderBy: 'modifiedTime desc',
     pageSize: '20',
   })
 
   const data = await googleRequest(`${DRIVE_FILES_BASE}?${params.toString()}`)
-  const files = data.files ?? []
-  return files[0]?.id ?? null
+  return data.files?.[0]?.id ?? null
+}
+
+async function spreadsheetExists(spreadsheetId) {
+  if (!spreadsheetId) return false
+  try {
+    await getMetadata(spreadsheetId)
+    return true
+  } catch (error) {
+    if ([403, 404].includes(error?.status)) return false
+    throw error
+  }
 }
 
 async function resolveSpreadsheet() {
-  // First try the device cache only as a speed optimization, never as the
-  // source of truth. If it is stale/deleted, fall back to Drive discovery.
-  const cached = localStorage.getItem(SPREADSHEET_ID_KEY)
-  if (cached) {
-    try {
-      await getMetadata(cached)
-      return cached
-    } catch (error) {
-      if (![403, 404].includes(error?.status)) throw error
-      localStorage.removeItem(SPREADSHEET_ID_KEY)
-    }
+  // Cross-device source of truth: a tiny private config file in Google Drive's
+  // appDataFolder. Every browser/device signed into the same Google account
+  // reads the same spreadsheet ID from here.
+  const canonical = await readCanonicalSpreadsheetId()
+
+  if (await spreadsheetExists(canonical.spreadsheetId)) {
+    localStorage.setItem(SPREADSHEET_ID_KEY, canonical.spreadsheetId)
+    return canonical.spreadsheetId
   }
 
+  // Migration path for the first run of this version: if a workbook already
+  // exists, adopt it and immediately make it canonical for every device.
   const discovered = await findAppSpreadsheetInDrive()
   if (discovered) {
-    localStorage.setItem(SPREADSHEET_ID_KEY, discovered)
+    await writeCanonicalSpreadsheetId(discovered, canonical.configFileId)
     return discovered
   }
 
-  return null
+  return { configFileId: canonical.configFileId, spreadsheetId: null }
 }
 
-async function createSpreadsheet() {
+async function createSpreadsheet(existingConfigFileId = null) {
   const monthKey = getMonthKey()
   const tabs = tabsForMonth(monthKey)
 
@@ -189,9 +255,9 @@ async function createSpreadsheet() {
   })
 
   const spreadsheetId = created.spreadsheetId
-  localStorage.setItem(SPREADSHEET_ID_KEY, spreadsheetId)
 
   try {
+    await writeCanonicalSpreadsheetId(spreadsheetId, existingConfigFileId)
     await writeInitialMonthValues(spreadsheetId, tabs, {
       trackingStartDate: toIsoDate(getMonthStart(monthKey)),
     })
@@ -206,12 +272,13 @@ async function createSpreadsheet() {
 export async function ensureSpreadsheet() {
   if (!creationPromise) {
     creationPromise = (async () => {
-      const existing = await resolveSpreadsheet()
-      if (existing) return existing
+      const resolved = await resolveSpreadsheet()
 
-      // If no app spreadsheet exists in Drive, create the single canonical one.
-      // Concurrent calls in this browser share this promise.
-      return createSpreadsheet()
+      if (typeof resolved === 'string') return resolved
+
+      // No canonical workbook exists yet. Create one and immediately write its
+      // ID to Drive appData so all other devices discover exactly this workbook.
+      return createSpreadsheet(resolved?.configFileId ?? null)
     })().finally(() => {
       creationPromise = null
     })
@@ -221,6 +288,7 @@ export async function ensureSpreadsheet() {
 }
 
 export function getSpreadsheetId() {
+  // Exposed only as the most recently resolved local cache.
   return localStorage.getItem(SPREADSHEET_ID_KEY)
 }
 

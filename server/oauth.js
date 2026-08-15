@@ -6,7 +6,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto'
 
-export const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'
+export const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata'
 export const REFRESH_COOKIE = 'expense_refresh'
 export const STATE_COOKIE = 'expense_oauth_state'
 
