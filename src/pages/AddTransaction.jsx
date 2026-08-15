@@ -141,34 +141,34 @@ export default function AddTransaction() {
 
 const styles = {
   container: {
-    padding: '14px 16px 72px',
+    padding: '10px 16px 68px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
   title: {
-    marginBottom: '14px',
-    fontSize: '22px',
+    marginBottom: '10px',
+    fontSize: '20px',
     lineHeight: 1.2,
   },
   field: {
-    marginBottom: '14px',
+    marginBottom: '10px',
   },
   choiceField: {
-    marginBottom: '12px',
+    marginBottom: '8px',
   },
   label: {
     display: 'block',
     fontSize: '13px',
     fontWeight: 600,
     color: 'var(--text-muted)',
-    marginBottom: '6px',
+    marginBottom: '4px',
   },
   input: {
     width: '100%',
     minWidth: 0,
     maxWidth: '100%',
-    minHeight: '56px',
+    minHeight: '48px',
     padding: '0 16px',
     borderRadius: '14px',
     border: '1px solid var(--border)',
@@ -185,8 +185,8 @@ const styles = {
   },
   dateButton: {
     width: '100%',
-    minHeight: '56px',
-    padding: '0 16px',
+    minHeight: '50px',
+    padding: '0 14px',
     borderRadius: '14px',
     border: '1px solid var(--border)',
     boxSizing: 'border-box',
@@ -220,12 +220,12 @@ const styles = {
   chipRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '8px',
+    gap: '7px',
     alignItems: 'center',
   },
   chip: {
-    minHeight: '40px',
-    padding: '0 15px',
+    minHeight: '36px',
+    padding: '0 13px',
     borderRadius: '999px',
     border: '1px solid var(--border)',
     background: 'var(--surface)',
@@ -258,8 +258,8 @@ const styles = {
     boxShadow: '0 6px 16px rgba(37, 99, 235, 0.18)',
   },
   billingInfo: {
-    padding: '10px 12px',
-    marginBottom: '10px',
+    padding: '8px 10px',
+    marginBottom: '8px',
     borderRadius: '12px',
     background: 'var(--surface-soft)',
     fontSize: '14px',
