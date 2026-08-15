@@ -18,7 +18,10 @@ const SPREADSHEET_ID_KEY = 'expense_tracker_spreadsheet_id'
 const APP_SPREADSHEET_NAME = 'ניהול הוצאות'
 const APP_CONFIG_NAME = 'expense-tracker-config.json'
 let creationPromise = null
+let resolvedSpreadsheetId = null
+let resolvedSpreadsheetPromise = null
 const monthPromises = new Map()
+const monthContexts = new Map()
 
 async function googleRequest(url, options = {}) {
   async function requestWithToken(token) {
@@ -269,22 +272,36 @@ async function createSpreadsheet(existingConfigFileId = null) {
   return spreadsheetId
 }
 
+function clearRuntimeCaches({ clearLocal = false } = {}) {
+  resolvedSpreadsheetId = null
+  resolvedSpreadsheetPromise = null
+  creationPromise = null
+  monthPromises.clear()
+  monthContexts.clear()
+  if (clearLocal) localStorage.removeItem(SPREADSHEET_ID_KEY)
+}
+
 export async function ensureSpreadsheet() {
-  if (!creationPromise) {
-    creationPromise = (async () => {
-      const resolved = await resolveSpreadsheet()
+  // IMPORTANT: this caches only the canonical spreadsheet ID for the lifetime
+  // of the loaded app. Financial data is still fetched fresh from Sheets.
+  if (resolvedSpreadsheetId) return resolvedSpreadsheetId
+  if (resolvedSpreadsheetPromise) return resolvedSpreadsheetPromise
 
-      if (typeof resolved === 'string') return resolved
+  resolvedSpreadsheetPromise = (async () => {
+    const resolved = await resolveSpreadsheet()
 
-      // No canonical workbook exists yet. Create one and immediately write its
-      // ID to Drive appData so all other devices discover exactly this workbook.
-      return createSpreadsheet(resolved?.configFileId ?? null)
-    })().finally(() => {
-      creationPromise = null
-    })
-  }
+    if (typeof resolved === 'string') {
+      resolvedSpreadsheetId = resolved
+      return resolvedSpreadsheetId
+    }
 
-  return creationPromise
+    resolvedSpreadsheetId = await createSpreadsheet(resolved?.configFileId ?? null)
+    return resolvedSpreadsheetId
+  })().finally(() => {
+    resolvedSpreadsheetPromise = null
+  })
+
+  return resolvedSpreadsheetPromise
 }
 
 export function getSpreadsheetId() {
@@ -477,8 +494,7 @@ async function ensureCurrentMonthInternal() {
   } catch (error) {
     // If the whole spreadsheet was deleted from Drive, create a fresh one.
     if (error.status === 404) {
-      localStorage.removeItem(SPREADSHEET_ID_KEY)
-      creationPromise = null
+      clearRuntimeCaches({ clearLocal: true })
       spreadsheetId = await ensureSpreadsheet()
       const metadata = await getMetadata(spreadsheetId)
       return { spreadsheetId, monthKey, tabs: tabsForMonth(monthKey), metadata }
@@ -492,48 +508,76 @@ export async function ensureCurrentMonth() {
   const monthKey = getMonthKey()
   const key = `${spreadsheetId}:${monthKey}`
 
+  // Cache only sheet/tab metadata. Actual balances/transactions are never
+  // cached here and continue to be fetched directly from Google Sheets.
+  if (monthContexts.has(key)) return monthContexts.get(key)
+
   if (!monthPromises.has(key)) {
     monthPromises.set(
       key,
-      ensureCurrentMonthInternal().finally(() => {
-        monthPromises.delete(key)
-      })
+      ensureCurrentMonthInternal()
+        .then(context => {
+          monthContexts.set(key, context)
+          return context
+        })
+        .finally(() => {
+          monthPromises.delete(key)
+        })
     )
   }
 
   return monthPromises.get(key)
 }
 
+async function withCurrentMonthRetry(operation) {
+  let context = await ensureCurrentMonth()
+
+  try {
+    return await operation(context)
+  } catch (error) {
+    // If the canonical workbook was deleted/replaced while this tab was open,
+    // invalidate only runtime metadata and resolve again from Drive.
+    if (![403, 404].includes(error?.status)) throw error
+
+    clearRuntimeCaches({ clearLocal: true })
+    context = await ensureCurrentMonth()
+    return operation(context)
+  }
+}
+
 export async function fetchTransactions() {
-  const { spreadsheetId, tabs } = await ensureCurrentMonth()
-  const range = a1(tabs.transactions, 'A2:G')
-  const data = await googleRequest(`${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`)
-  const rows = data.values ?? []
-  return rows.map((row, i) => rowToTransaction(row, i + 2))
+  return withCurrentMonthRetry(async ({ spreadsheetId, tabs }) => {
+    const range = a1(tabs.transactions, 'A2:G')
+    const data = await googleRequest(`${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`)
+    const rows = data.values ?? []
+    return rows.map((row, i) => rowToTransaction(row, i + 2))
+  })
 }
 
 export async function appendTransaction(transaction) {
-  const { spreadsheetId, tabs } = await ensureCurrentMonth()
-  const range = a1(tabs.transactions, 'A2:G')
-  return googleRequest(
-    `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ values: [transactionToRow(transaction)] }),
-    }
-  )
+  return withCurrentMonthRetry(({ spreadsheetId, tabs }) => {
+    const range = a1(tabs.transactions, 'A2:G')
+    return googleRequest(
+      `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ values: [transactionToRow(transaction)] }),
+      }
+    )
+  })
 }
 
 export async function updateTransaction(transaction) {
-  const { spreadsheetId, tabs } = await ensureCurrentMonth()
-  const range = a1(tabs.transactions, `A${transaction.rowIndex}:G${transaction.rowIndex}`)
-  return googleRequest(
-    `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({ values: [transactionToRow(transaction)] }),
-    }
-  )
+  return withCurrentMonthRetry(({ spreadsheetId, tabs }) => {
+    const range = a1(tabs.transactions, `A${transaction.rowIndex}:G${transaction.rowIndex}`)
+    return googleRequest(
+      `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ values: [transactionToRow(transaction)] }),
+      }
+    )
+  })
 }
 
 export async function deleteTransaction(rowIndex) {
@@ -542,33 +586,34 @@ export async function deleteTransaction(rowIndex) {
     throw new Error('Invalid transaction row')
   }
 
-  const { spreadsheetId, tabs, metadata } = await ensureCurrentMonth()
-  const sheet = findSheet(metadata, tabs.transactions)
-  if (!sheet) throw new Error(`Sheet tab not found: ${tabs.transactions}`)
+  return withCurrentMonthRetry(({ spreadsheetId, tabs, metadata }) => {
+    const sheet = findSheet(metadata, tabs.transactions)
+    if (!sheet) throw new Error(`Sheet tab not found: ${tabs.transactions}`)
 
-  // Sheets API uses zero-based indexes and an exclusive endIndex.
-  return googleRequest(`${BASE}/${spreadsheetId}:batchUpdate`, {
-    method: 'POST',
-    body: JSON.stringify({
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: sheet.properties.sheetId,
-              dimension: 'ROWS',
-              startIndex: row - 1,
-              endIndex: row,
+    // Sheets API uses zero-based indexes and an exclusive endIndex.
+    return googleRequest(`${BASE}/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheet.properties.sheetId,
+                dimension: 'ROWS',
+                startIndex: row - 1,
+                endIndex: row,
+              },
             },
           },
-        },
-      ],
-    }),
+        ],
+      }),
+    })
   })
 }
 
 export async function fetchSummary() {
-  const { spreadsheetId, monthKey, tabs } = await ensureCurrentMonth()
-  const ranges = [
+  return withCurrentMonthRetry(async ({ spreadsheetId, monthKey, tabs }) => {
+    const ranges = [
     a1(tabs.summary, 'B2'),
     a1(tabs.summary, 'B3'),
     a1(tabs.summary, 'B4'),
@@ -621,25 +666,38 @@ export async function fetchSummary() {
     )
   }
 
-  return {
-    checking,
-    credit,
-    trackingStartDate: startDate,
-    essential,
-    discretionary,
-    previousCharges: previousCharges === '' ? 0 : previousCharges,
-    wallet: wallet === '' ? 0 : wallet,
-  }
+    return {
+      checking,
+      credit,
+      trackingStartDate: startDate,
+      essential,
+      discretionary,
+      previousCharges: previousCharges === '' ? 0 : previousCharges,
+      wallet: wallet === '' ? 0 : wallet,
+    }
+  })
 }
 
 export async function updateSummaryCell(cell, value) {
-  const { spreadsheetId, tabs } = await ensureCurrentMonth()
-  const range = a1(tabs.summary, cell)
-  return googleRequest(
-    `${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({ values: [[value]] }),
-    }
+  return updateSummaryCells([[cell, value]])
+}
+
+export async function updateSummaryCells(updates) {
+  const cleanUpdates = (updates ?? []).filter(
+    item => Array.isArray(item) && item.length >= 2 && item[0]
+  )
+  if (!cleanUpdates.length) return null
+
+  return withCurrentMonthRetry(({ spreadsheetId, tabs }) =>
+    googleRequest(`${BASE}/${spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: cleanUpdates.map(([cell, value]) => ({
+          range: a1(tabs.summary, cell),
+          values: [[value]],
+        })),
+      }),
+    })
   )
 }

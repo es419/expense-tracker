@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchTransactions, fetchSummary, updateSummaryCell } from '../services/sheetsApi'
+import { fetchTransactions, fetchSummary, updateSummaryCells } from '../services/sheetsApi'
 import { signOut } from '../services/googleAuth'
 import { computeFinancialState, formatHebrewDate, formatHebrewMonth } from '../utils/billing'
 
@@ -56,8 +56,8 @@ export default function Summary() {
     try {
       setSavingSettings(true)
 
-      // Save only fields the user actually changed, then reload once.
-      await Promise.all(updates.map(([cell, value]) => updateSummaryCell(cell, value)))
+      // One Google Sheets batch write instead of one network request per field.
+      await updateSummaryCells(updates)
 
       setSettingsForm({
         checking: '',
