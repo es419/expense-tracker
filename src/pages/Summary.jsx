@@ -75,7 +75,7 @@ export default function Summary() {
     }
   }
 
-  if (loading) return <div style={styles.center}>טוען...</div>
+  if (loading) return <div style={styles.center} />
 
   const now = new Date()
   const { checking, wallet, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(now)
@@ -355,17 +355,19 @@ const styles = {
   settingsToggle: {
     width: '100%',
     marginTop: '16px',
-    padding: '13px 15px',
+    minHeight: '48px',
+    padding: '13px 16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     background: 'var(--surface)',
     color: 'var(--text)',
     border: '1px solid var(--border)',
-    borderRadius: '12px',
+    borderRadius: '16px',
     cursor: 'pointer',
-    fontWeight: 650,
+    fontWeight: 750,
     fontSize: '14px',
+    boxShadow: 'var(--shadow)',
   },
   chevron: {
     color: 'var(--text-muted)',
@@ -446,27 +448,30 @@ const styles = {
   },
   saveAllBtn: {
     width: '100%',
-    minHeight: '48px',
+    minHeight: '50px',
     marginTop: '14px',
-    padding: '12px 14px',
+    padding: '13px 16px',
     background: 'var(--button)',
     color: 'var(--button-text)',
     border: 'none',
-    borderRadius: '9px',
+    borderRadius: '16px',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: '14px',
+    boxShadow: '0 10px 24px rgba(16, 24, 40, 0.12)',
   },
   logoutBtn: {
     width: '100%',
+    minHeight: '42px',
     marginTop: '16px',
-    padding: '9px 12px',
+    padding: '10px 12px',
     background: 'transparent',
     color: 'var(--expense)',
-    border: 'none',
-    borderRadius: '8px',
+    border: '1px solid color-mix(in srgb, var(--expense) 28%, transparent)',
+    borderRadius: '14px',
     cursor: 'pointer',
     fontSize: '13px',
+    fontWeight: 700,
   },
   center: {
     display: 'flex',

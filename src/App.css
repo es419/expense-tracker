@@ -7,6 +7,10 @@ body {
   margin: 0 auto;
 }
 
+#root {
+  width: 100%;
+}
+
 .app,
 .sign-in-shell {
   min-height: 100vh;

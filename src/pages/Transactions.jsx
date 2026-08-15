@@ -53,7 +53,7 @@ export default function Transactions() {
     }
   }
 
-  if (loading) return <div style={styles.center}>טוען...</div>
+  if (loading) return <div style={styles.center} />
   if (error) return <div style={styles.center}>שגיאה: {error}</div>
 
   const totalExpenses = transactions
@@ -114,10 +114,32 @@ export default function Transactions() {
 }
 
 const styles = {
-  container: { padding: '16px', paddingBottom: '80px', direction: 'rtl' },
-  title: { marginBottom: '8px' },
-  refresh: { marginBottom: '16px', padding: '8px 16px', cursor: 'pointer', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)', color: 'var(--text)' },
-  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid var(--border)', gap: '10px', background: 'var(--surface)' },
+  container: { padding: '16px', paddingBottom: '96px', direction: 'rtl', maxWidth: '480px', margin: '0 auto' },
+  title: { marginBottom: '10px', fontSize: '24px' },
+  refresh: {
+    marginBottom: '16px',
+    minHeight: '42px',
+    padding: '10px 16px',
+    cursor: 'pointer',
+    border: '1px solid var(--border)',
+    borderRadius: '14px',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    fontWeight: 700,
+    boxShadow: 'var(--shadow)',
+  },
+  row: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '14px 14px',
+    border: '1px solid var(--border)',
+    borderRadius: '18px',
+    gap: '10px',
+    background: 'var(--surface)',
+    boxShadow: 'var(--shadow)',
+    marginBottom: '10px',
+  },
   details: { minWidth: 0, flex: 1 },
   actions: { display: 'flex', alignItems: 'center', gap: '10px' },
   category: { fontWeight: '600', fontSize: '16px' },
@@ -125,10 +147,31 @@ const styles = {
   income: { color: 'var(--income)', fontWeight: '600', whiteSpace: 'nowrap' },
   expense: { color: 'var(--expense)', fontWeight: '600', whiteSpace: 'nowrap' },
   transfer: { color: 'var(--text-muted)', fontWeight: '600', whiteSpace: 'nowrap' },
-  deleteBtn: { padding: '6px 9px', border: '1px solid color-mix(in srgb, var(--expense) 35%, transparent)', borderRadius: '7px', background: 'var(--danger-bg)', color: 'var(--expense)', cursor: 'pointer', fontSize: '12px' },
+  deleteBtn: {
+    minHeight: '36px',
+    padding: '8px 12px',
+    border: '1px solid color-mix(in srgb, var(--expense) 35%, transparent)',
+    borderRadius: '12px',
+    background: 'var(--danger-bg)',
+    color: 'var(--expense)',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 700,
+  },
   center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' },
   empty: { textAlign: 'center', color: 'var(--text-muted)', marginTop: '40px' },
-  totalBox: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginTop: '18px', padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', boxShadow: 'var(--shadow)' },
+  totalBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    marginTop: '18px',
+    padding: '16px 18px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '18px',
+    boxShadow: 'var(--shadow)',
+  },
   totalLabel: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: 600 },
   totalValue: { fontSize: '20px', whiteSpace: 'nowrap' },
 }

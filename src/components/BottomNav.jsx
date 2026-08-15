@@ -1,71 +1,116 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 
+function ListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M8 6h11" />
+      <path d="M8 12h11" />
+      <path d="M8 18h11" />
+      <path d="M4 6h.01" />
+      <path d="M4 12h.01" />
+      <path d="M4 18h.01" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+function ChartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19V5" />
+      <path d="M4 19h16" />
+      <path d="M8 15l3-4 3 2 4-6" />
+    </svg>
+  )
+}
+
 export default function BottomNav() {
   const navigate = useNavigate()
   const location = useLocation()
 
   const tabs = [
-    { path: '/transactions', label: 'תנועות', icon: '📋' },
-    { path: '/add', label: 'הוסף', icon: '➕' },
-    { path: '/summary', label: 'סיכום', icon: '📊' },
+    { path: '/transactions', label: 'תנועות', icon: <ListIcon /> },
+    { path: '/add', label: 'הוסף', icon: <PlusIcon /> },
+    { path: '/summary', label: 'סיכום', icon: <ChartIcon /> },
   ]
 
   return (
-    <div style={styles.nav}>
-      {tabs.map(tab => (
-        <button
-          key={tab.path}
-          onClick={() => navigate(tab.path)}
-          style={location.pathname === tab.path ? styles.tabActive : styles.tab}
-        >
-          <div style={styles.icon}>{tab.icon}</div>
-          <div style={styles.label}>{tab.label}</div>
-        </button>
-      ))}
-    </div>
+    <nav style={styles.nav} aria-label="תפריט ניווט תחתון">
+      {tabs.map(tab => {
+        const active = location.pathname === tab.path
+        return (
+          <button
+            key={tab.path}
+            type="button"
+            onClick={() => navigate(tab.path)}
+            style={active ? styles.tabActive : styles.tab}
+            aria-current={active ? 'page' : undefined}
+          >
+            <span style={styles.icon}>{tab.icon}</span>
+            <span style={styles.label}>{tab.label}</span>
+          </button>
+        )
+      })}
+    </nav>
   )
+}
+
+const tabBase = {
+  border: 0,
+  borderRadius: '16px',
+  background: 'transparent',
+  padding: '10px 8px 8px',
+  display: 'grid',
+  justifyItems: 'center',
+  gap: '4px',
+  cursor: 'pointer',
+  fontWeight: 700,
+  fontSize: '12px',
+  transition: 'background-color 160ms ease, color 160ms ease, transform 160ms ease',
 }
 
 const styles = {
   nav: {
     position: 'fixed',
-    bottom: 0,
-    left: '50%',
-    right: 'auto',
-    width: 'min(100%, 480px)',
-    transform: 'translateX(-50%)',
-    display: 'flex',
+    zIndex: 20,
+    right: '50%',
+    bottom: '14px',
+    transform: 'translateX(50%)',
+    width: 'min(430px, calc(100% - 24px))',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '6px',
+    padding: '8px',
+    border: '1px solid rgba(29, 41, 57, 0.08)',
+    borderRadius: '22px',
     background: 'var(--nav-bg)',
-    borderTop: '1px solid var(--border)',
-    padding: '8px 0 max(8px, env(safe-area-inset-bottom))',
-    backdropFilter: 'blur(14px)',
-    WebkitBackdropFilter: 'blur(14px)',
+    boxShadow: 'var(--nav-shadow)',
+    backdropFilter: 'blur(22px)',
+    WebkitBackdropFilter: 'blur(22px)',
   },
   tab: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
+    ...tabBase,
     color: 'var(--text-muted)',
-    padding: '4px',
   },
   tabActive: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: 'var(--text)',
-    fontWeight: 'bold',
-    padding: '4px',
+    ...tabBase,
+    color: 'var(--nav-active-text)',
+    background: 'var(--nav-active-bg)',
   },
-  icon: { fontSize: '20px' },
-  label: { fontSize: '11px' },
+  icon: {
+    display: 'inline-grid',
+    placeItems: 'center',
+    minHeight: '20px',
+  },
+  label: {
+    lineHeight: 1.1,
+  },
 }

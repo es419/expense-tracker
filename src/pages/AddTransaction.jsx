@@ -281,16 +281,17 @@ const styles = {
   },
   saveBtn: {
     width: '100%',
-    minHeight: '50px',
-    padding: '12px',
+    minHeight: '52px',
+    padding: '14px 18px',
     background: 'var(--button)',
     color: 'var(--button-text)',
     border: 'none',
-    borderRadius: '12px',
+    borderRadius: '16px',
     fontSize: '16px',
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: 'pointer',
     marginTop: '18px',
+    boxShadow: '0 10px 24px rgba(16, 24, 40, 0.12)',
   },
 }
 

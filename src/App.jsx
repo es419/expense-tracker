@@ -77,7 +77,7 @@ function App() {
           background: 'var(--bg)',
           color: 'var(--text-muted)',
         }}>
-          מתחבר…
+
         </div>
       </div>
     )
