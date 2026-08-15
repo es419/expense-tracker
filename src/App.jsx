@@ -7,6 +7,7 @@ import Summary from './pages/Summary'
 import BottomNav from './components/BottomNav'
 import ThemeMenu from './components/ThemeMenu'
 import { restoreSession } from './services/googleAuth'
+import { preloadFinancialData } from './services/sheetsApi'
 import './App.css'
 
 const THEME_KEY = 'expense_tracker_theme'
@@ -35,6 +36,14 @@ function App() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!isSignedIn) return
+
+    // Same UX idea as the attendance app: warm the data while the user is
+    // already looking at the first screen, instead of waiting for the next tab.
+    preloadFinancialData().catch(() => {})
+  }, [isSignedIn])
 
   useEffect(() => {
     const media = window.matchMedia?.('(prefers-color-scheme: dark)')

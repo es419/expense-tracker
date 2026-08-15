@@ -1,23 +1,24 @@
 import { useState, useEffect } from 'react'
-import { deleteTransaction, fetchTransactions } from '../services/sheetsApi'
+import { deleteTransaction, fetchTransactions, getCachedTransactions } from '../services/sheetsApi'
 import { formatHebrewDate, formatHebrewMonth, getCreditChargeDate, parseDate } from '../utils/billing'
 
 export default function Transactions() {
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cached = getCachedTransactions()
+  const [transactions, setTransactions] = useState(() => cached ? [...cached].reverse() : [])
+  const [loading, setLoading] = useState(() => !cached)
   const [error, setError] = useState(null)
   const [deletingRow, setDeletingRow] = useState(null)
 
   useEffect(() => {
-    load()
+    load({ showLoader: !cached })
   }, [])
 
-  async function load() {
+  async function load({ showLoader = false } = {}) {
     try {
-      setLoading(true)
+      if (showLoader) setLoading(true)
       setError(null)
       const data = await fetchTransactions()
-      setTransactions(data.reverse())
+      setTransactions([...data].reverse())
     } catch (e) {
       setError(e.message)
     } finally {
@@ -62,7 +63,7 @@ export default function Transactions() {
   return (
     <div style={styles.container}>
       <h2 style={styles.title}>תנועות · {formatHebrewMonth()}</h2>
-      <button onClick={load} style={styles.refresh}>רענן</button>
+      <button onClick={() => load()} style={styles.refresh}>רענן</button>
       {transactions.length === 0 && (
         <p style={styles.empty}>אין תנועות עדיין</p>
       )}

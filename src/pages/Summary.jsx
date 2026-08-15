@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
-import { fetchTransactions, fetchSummary, updateSummaryCells } from '../services/sheetsApi'
+import { fetchTransactions, fetchSummary, getCachedTransactions, getCachedSummary, updateSummaryCells } from '../services/sheetsApi'
 import { signOut } from '../services/googleAuth'
 import { computeFinancialState, formatHebrewDate, formatHebrewMonth } from '../utils/billing'
 
 export default function Summary() {
-  const [summary, setSummary] = useState(null)
-  const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cachedSummary = getCachedSummary()
+  const cachedTransactions = getCachedTransactions()
+  const [summary, setSummary] = useState(() => cachedSummary)
+  const [transactions, setTransactions] = useState(() => cachedTransactions ?? [])
+  const [loading, setLoading] = useState(() => !(cachedSummary && cachedTransactions))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsForm, setSettingsForm] = useState({
     checking: '',
@@ -18,12 +20,12 @@ export default function Summary() {
   const [savingSettings, setSavingSettings] = useState(false)
 
   useEffect(() => {
-    load()
+    load({ showLoader: !(cachedSummary && cachedTransactions) })
   }, [])
 
-  async function load() {
+  async function load({ showLoader = false } = {}) {
     try {
-      setLoading(true)
+      if (showLoader) setLoading(true)
       const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()])
       setSummary(s)
       setTransactions(t)

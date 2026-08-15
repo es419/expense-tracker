@@ -23,6 +23,14 @@ let resolvedSpreadsheetPromise = null
 const monthPromises = new Map()
 const monthContexts = new Map()
 
+// View-performance cache only. Google Sheets remains the source of truth.
+// These values live only while the current app page is loaded, similar to the
+// attendance app keeping its fetched data in React state between views.
+let cachedTransactions = null
+let cachedSummary = null
+let transactionsFetchPromise = null
+let summaryFetchPromise = null
+
 async function googleRequest(url, options = {}) {
   async function requestWithToken(token) {
     return fetch(url, {
@@ -278,6 +286,10 @@ function clearRuntimeCaches({ clearLocal = false } = {}) {
   creationPromise = null
   monthPromises.clear()
   monthContexts.clear()
+  cachedTransactions = null
+  cachedSummary = null
+  transactionsFetchPromise = null
+  summaryFetchPromise = null
   if (clearLocal) localStorage.removeItem(SPREADSHEET_ID_KEY)
 }
 
@@ -545,13 +557,27 @@ async function withCurrentMonthRetry(operation) {
   }
 }
 
+export function getCachedTransactions() {
+  return cachedTransactions ? cachedTransactions.map(item => ({ ...item })) : null
+}
+
 export async function fetchTransactions() {
-  return withCurrentMonthRetry(async ({ spreadsheetId, tabs }) => {
+  // Deduplicate only concurrent requests. A later call still goes to Sheets,
+  // so another device's changes are picked up normally.
+  if (transactionsFetchPromise) return transactionsFetchPromise
+
+  transactionsFetchPromise = withCurrentMonthRetry(async ({ spreadsheetId, tabs }) => {
     const range = a1(tabs.transactions, 'A2:G')
     const data = await googleRequest(`${BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`)
     const rows = data.values ?? []
-    return rows.map((row, i) => rowToTransaction(row, i + 2))
+    const result = rows.map((row, i) => rowToTransaction(row, i + 2))
+    cachedTransactions = result
+    return result.map(item => ({ ...item }))
+  }).finally(() => {
+    transactionsFetchPromise = null
   })
+
+  return transactionsFetchPromise
 }
 
 export async function appendTransaction(transaction) {
@@ -611,8 +637,14 @@ export async function deleteTransaction(rowIndex) {
   })
 }
 
+export function getCachedSummary() {
+  return cachedSummary ? { ...cachedSummary } : null
+}
+
 export async function fetchSummary() {
-  return withCurrentMonthRetry(async ({ spreadsheetId, monthKey, tabs }) => {
+  if (summaryFetchPromise) return summaryFetchPromise
+
+  summaryFetchPromise = withCurrentMonthRetry(async ({ spreadsheetId, monthKey, tabs }) => {
     const ranges = [
     a1(tabs.summary, 'B2'),
     a1(tabs.summary, 'B3'),
@@ -666,7 +698,7 @@ export async function fetchSummary() {
     )
   }
 
-    return {
+    const result = {
       checking,
       credit,
       trackingStartDate: startDate,
@@ -675,7 +707,20 @@ export async function fetchSummary() {
       previousCharges: previousCharges === '' ? 0 : previousCharges,
       wallet: wallet === '' ? 0 : wallet,
     }
+    cachedSummary = result
+    return { ...result }
+  }).finally(() => {
+    summaryFetchPromise = null
   })
+
+  return summaryFetchPromise
+}
+
+export async function preloadFinancialData() {
+  // Warm the same canonical month in the background when the app opens.
+  // No financial result is trusted permanently: screen refreshes still call
+  // fetchSummary/fetchTransactions and therefore still read Google Sheets.
+  await Promise.all([fetchSummary(), fetchTransactions()])
 }
 
 export async function updateSummaryCell(cell, value) {
