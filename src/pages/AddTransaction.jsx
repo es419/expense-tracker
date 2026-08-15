@@ -4,7 +4,7 @@ import { appendTransaction } from '../services/sheetsApi'
 import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '../config/sheetsConfig'
 import { formatHebrewDate, formatHebrewMonth, formatIsoDate, getCreditChargeDate, toIsoDate } from '../utils/billing'
 
-function ChipRow({ label, options, value, onChange }) {
+function ChipRow({ label, options, value, onChange, allowClear = false }) {
   return (
     <div style={{ ...styles.field, ...styles.choiceField }}>
       <label style={styles.label}>{label}</label>
@@ -13,7 +13,10 @@ function ChipRow({ label, options, value, onChange }) {
           <button
             key={opt}
             type="button"
-            onClick={() => onChange(opt)}
+            onClick={() => {
+              if (allowClear && value === opt) onChange('')
+              else onChange(opt)
+            }}
             style={value === opt ? styles.chipSelected : styles.chip}
           >
             {opt}
@@ -116,7 +119,13 @@ export default function AddTransaction() {
       {type !== 'העברה לארנק' && (
         <>
           <ChipRow label="קטגוריה" options={CATEGORIES} value={category} onChange={setCategory} />
-          <ChipRow label="תקציב" options={BUDGET_TYPES} value={budget} onChange={setBudget} />
+          <ChipRow
+            label="תקציב"
+            options={BUDGET_TYPES}
+            value={budget}
+            onChange={setBudget}
+            allowClear
+          />
           <ChipRow label="אמצעי תשלום" options={PAYMENT_METHODS} value={paymentMethod} onChange={setPaymentMethod} />
         </>
       )}
