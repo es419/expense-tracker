@@ -290,7 +290,7 @@ const styles = {
     fontSize: '16px',
     fontWeight: 700,
     cursor: 'pointer',
-    marginTop: '4px',
+    marginTop: '14px',
   },
 }
 
