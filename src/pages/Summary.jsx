@@ -86,7 +86,7 @@ function BudgetBar({ title, spent, budget }) {
   return (
     <div style={styles.card}>
       <div style={styles.cardLabel}>{title}</div>
-      <div style={styles.cardValue}>{spent.toFixed(0)} / {budget.toFixed(0)} ₪</div>
+      <div style={styles.budgetValue}>{spent.toFixed(0)} / {budget.toFixed(0)} ₪</div>
       <div style={styles.barBg}>
         <div style={{ ...styles.barFill, width: `${pct * 100}%`, background: over ? 'var(--expense)' : 'var(--primary)' }} />
       </div>
@@ -111,6 +111,7 @@ const styles = {
   card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '12px', boxShadow: 'var(--shadow)' },
   cardLabel: { fontSize: '13px', color: 'var(--text-muted)' },
   cardValue: { fontSize: '22px', fontWeight: 'bold', marginTop: '4px' },
+  budgetValue: { fontSize: '22px', fontWeight: 'bold', marginTop: '4px', textAlign: 'right', direction: 'ltr', unicodeBidi: 'embed' },
   cardHint: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' },
   barBg: { height: '8px', background: 'var(--surface-strong)', borderRadius: '4px', marginTop: '8px', overflow: 'hidden' },
   barFill: { height: '8px', borderRadius: '4px' },
