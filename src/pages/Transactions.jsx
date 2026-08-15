@@ -86,7 +86,7 @@ export default function Transactions() {
                 ? `+${t.amount} ₪`
                 : t.type === 'העברה לארנק'
                   ? `↔ ${t.amount} ₪`
-                  : `-${t.amount} ₪`}
+                  : `${t.amount} ₪`}
             </div>
             <button
               type="button"

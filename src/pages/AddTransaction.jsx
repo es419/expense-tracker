@@ -97,11 +97,16 @@ export default function AddTransaction() {
         <label style={styles.label}>סכום (₪)</label>
         <input
           style={{ ...styles.input, ...styles.amountInput }}
-          type="number"
-          min="0"
-          step="0.01"
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9]*[.,]?[0-9]*"
           value={amount}
-          onChange={e => setAmount(e.target.value)}
+          onChange={e => {
+            const normalized = e.target.value.replace(',', '.')
+            if (/^\d*(\.\d{0,2})?$/.test(normalized)) {
+              setAmount(normalized)
+            }
+          }}
           placeholder="0"
         />
       </div>
