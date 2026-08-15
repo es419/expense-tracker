@@ -121,8 +121,12 @@ export function computeFinancialState(summary, transactions, referenceDate = new
       continue
     }
 
-    if (t.budget === 'הכרחי') essentialSpent += amount
-    else discretionarySpent += amount
+    if (t.budget === 'הכרחי') {
+      essentialSpent += amount
+    } else if (t.budget === 'מותרות') {
+      discretionarySpent += amount
+    }
+    // Empty/unknown budget is intentionally excluded from both budget totals.
 
     if (t.paymentMethod === 'אשראי') {
       const chargeDate = parseDate(t.chargeDate) ?? getCreditChargeDate(t.date)
