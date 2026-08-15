@@ -210,7 +210,7 @@ function ReadOnlyRow({ label, value, hint }) {
   return (
     <div style={styles.readOnlyRow}>
       <div style={styles.readOnlyText}>
-        <span style={styles.manualLabel}>{label}</span>
+        <span style={styles.fieldLabel}>{label}</span>
         {hint ? <span style={styles.readOnlyHint}>{hint}</span> : null}
       </div>
       <strong style={styles.readOnlyValue}>{value.toFixed(0)} ₪</strong>
@@ -220,17 +220,20 @@ function ReadOnlyRow({ label, value, hint }) {
 
 function ManualRow({ label, value, onChange }) {
   return (
-    <div style={styles.manualRow}>
-      <span style={styles.manualLabel}>{label}</span>
-      <input
-        style={styles.manualInput}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        type="number"
-        inputMode="decimal"
-        placeholder="הזן ערך"
-      />
-    </div>
+    <label style={styles.fieldCard}>
+      <span style={styles.fieldLabel}>{label}</span>
+      <div style={styles.inputShell}>
+        <input
+          style={styles.manualInput}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          type="number"
+          inputMode="decimal"
+          placeholder="הזן ערך"
+        />
+        <span style={styles.currencySuffix}>₪</span>
+      </div>
+    </label>
   )
 }
 
@@ -361,24 +364,45 @@ const styles = {
     borderRadius: '14px',
     boxShadow: 'var(--shadow)',
   },
-  manualRow: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '7px',
-    padding: '10px 0',
-    borderBottom: '1px solid var(--border)',
+  fieldCard: {
+    display: 'block',
+    padding: '12px',
+    marginBottom: '10px',
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
   },
-  manualLabel: {
+  fieldLabel: {
+    display: 'block',
+    marginBottom: '8px',
     fontSize: '13px',
+    fontWeight: 650,
+    color: 'var(--text)',
+  },
+  inputShell: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
   },
   manualInput: {
     width: '100%',
-    padding: '9px 10px',
-    borderRadius: '8px',
+    minHeight: '48px',
+    padding: '12px 38px 12px 14px',
+    borderRadius: '10px',
     border: '1px solid var(--border)',
     textAlign: 'right',
-    background: 'var(--bg)',
+    background: 'var(--surface)',
     color: 'var(--text)',
+    fontSize: '16px',
+    outline: 'none',
+    WebkitAppearance: 'none',
+  },
+  currencySuffix: {
+    position: 'absolute',
+    right: '14px',
+    color: 'var(--text-muted)',
+    fontSize: '14px',
+    pointerEvents: 'none',
   },
   readOnlyRow: {
     display: 'flex',
@@ -407,8 +431,9 @@ const styles = {
   },
   saveAllBtn: {
     width: '100%',
+    minHeight: '48px',
     marginTop: '14px',
-    padding: '11px 14px',
+    padding: '12px 14px',
     background: 'var(--button)',
     color: 'var(--button-text)',
     border: 'none',
