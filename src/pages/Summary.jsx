@@ -280,7 +280,11 @@ const styles = {
   },
   header: {
     marginBottom: '14px',
+    paddingLeft: '54px',
     paddingRight: '54px',
+    boxSizing: 'border-box',
+    width: '100%',
+    textAlign: 'center',
   },
   title: {
     margin: 0,

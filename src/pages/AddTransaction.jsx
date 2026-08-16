@@ -162,6 +162,10 @@ const styles = {
   },
   title: {
     marginBottom: '10px',
+    padding: '0 54px',
+    boxSizing: 'border-box',
+    width: '100%',
+    textAlign: 'center',
     fontSize: '20px',
     lineHeight: 1.2,
   },

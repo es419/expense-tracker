@@ -115,7 +115,14 @@ export default function Transactions() {
 
 const styles = {
   container: { padding: '16px', paddingBottom: '96px', direction: 'rtl', maxWidth: '480px', margin: '0 auto' },
-  title: { marginBottom: '10px', fontSize: '24px' },
+  title: {
+    marginBottom: '10px',
+    padding: '0 54px',
+    boxSizing: 'border-box',
+    width: '100%',
+    textAlign: 'center',
+    fontSize: '24px',
+  },
   refresh: {
     marginBottom: '16px',
     minHeight: '42px',
