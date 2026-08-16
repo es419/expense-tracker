@@ -15,7 +15,7 @@ function ListIcon() {
 
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </svg>
@@ -32,216 +32,137 @@ function ChartIcon() {
   )
 }
 
+const tabs = [
+  { path: '/transactions', label: 'תנועות', icon: <ListIcon /> },
+  { path: '/add', label: 'הוסף', icon: <PlusIcon /> },
+  { path: '/summary', label: 'סיכום', icon: <ChartIcon /> },
+]
+
 export default function BottomNav() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const transactionsActive = location.pathname === '/transactions'
-  const addActive = location.pathname === '/add'
-  const summaryActive = location.pathname === '/summary'
+  const activeIndex = Math.max(0, tabs.findIndex(tab => tab.path === location.pathname))
 
   return (
-    <nav style={styles.shell} aria-label="תפריט ניווט תחתון">
-      <div style={styles.glassBar}>
-        <div style={styles.topReflection} />
-        <div style={styles.bottomGlow} />
+    <nav style={styles.nav} aria-label="תפריט ניווט תחתון">
+      <div style={styles.topReflection} />
+      <div
+        aria-hidden="true"
+        style={{
+          ...styles.activePill,
+          transform: `translate3d(${activeIndex * 100}%, 0, 0)`,
+        }}
+      />
 
-        <button
-          type="button"
-          onClick={() => navigate('/transactions')}
-          style={transactionsActive ? styles.sideTabActive : styles.sideTab}
-          aria-current={transactionsActive ? 'page' : undefined}
-        >
-          <span style={styles.sideIcon}><ListIcon /></span>
-          <span style={styles.sideLabel}>תנועות</span>
-        </button>
-
-        <div style={styles.centerSlot} aria-hidden="true" />
-
-        <button
-          type="button"
-          onClick={() => navigate('/summary')}
-          style={summaryActive ? styles.sideTabActive : styles.sideTab}
-          aria-current={summaryActive ? 'page' : undefined}
-        >
-          <span style={styles.sideIcon}><ChartIcon /></span>
-          <span style={styles.sideLabel}>סיכום</span>
-        </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => navigate('/add')}
-        style={addActive ? styles.addButtonActive : styles.addButton}
-        aria-current={addActive ? 'page' : undefined}
-        aria-label="הוסף תנועה"
-      >
-        <span style={styles.addReflection} />
-        <span style={styles.addIcon}><PlusIcon /></span>
-        <span style={styles.addLabel}>הוסף</span>
-      </button>
+      {tabs.map((tab, index) => {
+        const active = index === activeIndex
+        return (
+          <button
+            key={tab.path}
+            type="button"
+            onClick={() => navigate(tab.path)}
+            style={{
+              ...styles.tab,
+              ...(active ? styles.tabActive : null),
+            }}
+            aria-current={active ? 'page' : undefined}
+          >
+            <span
+              style={{
+                ...styles.icon,
+                transform: active ? 'translateY(-1px) scale(1.04)' : 'translateY(0) scale(1)',
+              }}
+            >
+              {tab.icon}
+            </span>
+            <span style={styles.label}>{tab.label}</span>
+          </button>
+        )
+      })}
     </nav>
   )
 }
 
-const glassTabBase = {
-  border: 0,
-  minHeight: '52px',
-  borderRadius: '18px',
-  padding: '7px 12px 6px',
-  display: 'grid',
-  justifyItems: 'center',
-  alignContent: 'center',
-  gap: '3px',
-  cursor: 'pointer',
-  transition: 'background-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease',
-}
+const iosEase = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
 const styles = {
-  shell: {
+  nav: {
     position: 'fixed',
     zIndex: 30,
     right: '50%',
-    bottom: 'max(16px, env(safe-area-inset-bottom))',
+    bottom: 'max(14px, env(safe-area-inset-bottom))',
     transform: 'translateX(50%)',
-    width: 'min(388px, calc(100% - 28px))',
-    height: '72px',
-    pointerEvents: 'none',
-  },
-  glassBar: {
-    position: 'absolute',
-    inset: '8px 0 0',
+    width: 'min(410px, calc(100% - 28px))',
+    minHeight: '70px',
     display: 'grid',
-    gridTemplateColumns: '1fr 82px 1fr',
-    alignItems: 'center',
-    gap: '4px',
-    padding: '7px',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    alignItems: 'stretch',
+    padding: '8px',
     border: '1px solid var(--border)',
-    borderRadius: '29px',
-    background: 'color-mix(in srgb, var(--nav-bg) 90%, transparent)',
-    boxShadow: '0 22px 58px rgba(15, 32, 54, 0.25), inset 0 1px 0 var(--glass-highlight)',
-    backdropFilter: 'blur(36px) saturate(195%)',
-    WebkitBackdropFilter: 'blur(36px) saturate(195%)',
+    borderRadius: '26px',
+    background: 'color-mix(in srgb, var(--nav-bg) 92%, transparent)',
+    boxShadow: 'var(--nav-shadow)',
+    backdropFilter: 'blur(34px) saturate(190%)',
+    WebkitBackdropFilter: 'blur(34px) saturate(190%)',
     overflow: 'hidden',
-    pointerEvents: 'auto',
   },
   topReflection: {
     position: 'absolute',
+    zIndex: 0,
     top: 0,
     left: '10%',
     right: '10%',
     height: '1px',
     background: 'linear-gradient(90deg, transparent, var(--glass-highlight), transparent)',
-    opacity: 0.95,
     pointerEvents: 'none',
   },
-  bottomGlow: {
+  activePill: {
     position: 'absolute',
-    left: '30%',
-    right: '30%',
-    bottom: '-18px',
-    height: '30px',
-    borderRadius: '50%',
-    background: 'color-mix(in srgb, var(--primary) 18%, transparent)',
-    filter: 'blur(18px)',
+    zIndex: 0,
+    top: '8px',
+    bottom: '8px',
+    left: '8px',
+    width: 'calc((100% - 16px) / 3)',
+    borderRadius: '19px',
+    border: '1px solid color-mix(in srgb, var(--primary) 26%, var(--border))',
+    background: 'color-mix(in srgb, var(--nav-active-bg) 88%, transparent)',
+    boxShadow: '0 9px 24px color-mix(in srgb, var(--primary) 15%, transparent), inset 0 1px 0 var(--glass-highlight)',
+    transition: `transform 430ms ${iosEase}`,
+    willChange: 'transform',
     pointerEvents: 'none',
   },
-  sideTab: {
-    ...glassTabBase,
-    color: 'var(--text-muted)',
+  tab: {
+    position: 'relative',
+    zIndex: 1,
+    minWidth: 0,
+    minHeight: '54px',
+    border: 0,
+    borderRadius: '19px',
     background: 'transparent',
-    boxShadow: 'none',
+    color: 'var(--text-muted)',
+    padding: '8px 6px 7px',
+    display: 'grid',
+    justifyItems: 'center',
+    alignContent: 'center',
+    gap: '4px',
+    cursor: 'pointer',
+    fontWeight: 740,
+    transition: `color 300ms ${iosEase}, transform 300ms ${iosEase}`,
   },
-  sideTabActive: {
-    ...glassTabBase,
+  tabActive: {
     color: 'var(--nav-active-text)',
-    background: 'color-mix(in srgb, var(--nav-active-bg) 86%, transparent)',
-    boxShadow: 'inset 0 1px 0 var(--glass-highlight), 0 8px 20px color-mix(in srgb, var(--primary) 12%, transparent)',
-    transform: 'translateY(-1px)',
   },
-  sideIcon: {
+  icon: {
     display: 'grid',
     placeItems: 'center',
-    height: '21px',
+    height: '22px',
+    transition: `transform 360ms ${iosEase}`,
+    willChange: 'transform',
   },
-  sideLabel: {
+  label: {
     fontSize: '11px',
     lineHeight: 1.05,
-    fontWeight: 760,
-  },
-  centerSlot: {
-    width: '82px',
-    height: '48px',
-  },
-  addButton: {
-    position: 'absolute',
-    zIndex: 2,
-    top: '-2px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '68px',
-    height: '68px',
-    border: '1px solid var(--border)',
-    borderRadius: '24px',
-    background: 'color-mix(in srgb, var(--surface-strong) 82%, transparent)',
-    color: 'var(--text)',
-    boxShadow: '0 18px 42px rgba(13, 29, 51, 0.25), inset 0 1px 0 var(--glass-highlight)',
-    backdropFilter: 'blur(30px) saturate(190%)',
-    WebkitBackdropFilter: 'blur(30px) saturate(190%)',
-    display: 'grid',
-    justifyItems: 'center',
-    alignContent: 'center',
-    gap: '1px',
-    cursor: 'pointer',
-    overflow: 'hidden',
-    pointerEvents: 'auto',
-    transition: 'transform 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease',
-  },
-  addButtonActive: {
-    position: 'absolute',
-    zIndex: 2,
-    top: '-4px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '70px',
-    height: '70px',
-    border: '1px solid color-mix(in srgb, var(--primary) 72%, white 28%)',
-    borderRadius: '25px',
-    background: 'linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, white 12%), var(--primary))',
-    color: '#ffffff',
-    boxShadow: '0 20px 46px color-mix(in srgb, var(--primary) 34%, transparent), inset 0 1px 0 rgba(255,255,255,0.48)',
-    display: 'grid',
-    justifyItems: 'center',
-    alignContent: 'center',
-    gap: '1px',
-    cursor: 'pointer',
-    overflow: 'hidden',
-    pointerEvents: 'auto',
-    transition: 'transform 160ms ease, box-shadow 160ms ease, background 160ms ease, color 160ms ease',
-  },
-  addReflection: {
-    position: 'absolute',
-    top: '2px',
-    left: '16%',
-    right: '16%',
-    height: '14px',
-    borderRadius: '50%',
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.28), transparent)',
-    filter: 'blur(3px)',
-    pointerEvents: 'none',
-  },
-  addIcon: {
-    position: 'relative',
-    zIndex: 1,
-    display: 'grid',
-    placeItems: 'center',
-    height: '26px',
-  },
-  addLabel: {
-    position: 'relative',
-    zIndex: 1,
-    fontSize: '10px',
-    lineHeight: 1,
-    fontWeight: 820,
+    fontWeight: 780,
   },
 }
