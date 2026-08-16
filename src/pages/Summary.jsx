@@ -306,8 +306,6 @@ const styles = {
     margin: 0,
     fontSize: '24px',
   },
-  month: {
-    
   balanceCard: {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
