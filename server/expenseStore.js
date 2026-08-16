@@ -577,3 +577,18 @@ export async function ensureMonthOnly(accessToken, cacheKey, monthKey) {
   const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
   return { spreadsheetId: context.spreadsheetId, monthKey: context.monthKey }
 }
+
+
+export async function listAvailableMonths(accessToken, cacheKey, currentMonthKey) {
+  const current = validateMonthKey(currentMonthKey)
+  const context = await ensureCurrentMonth(accessToken, cacheKey, current)
+  const keys = new Set()
+
+  for (const sheet of context.metadata.sheets ?? []) {
+    const key = extractMonthKey(sheet.properties?.title)
+    if (key) keys.add(key)
+  }
+
+  keys.add(current)
+  return [...keys].sort()
+}

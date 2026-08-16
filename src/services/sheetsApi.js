@@ -1,22 +1,28 @@
 import { getMonthKey } from '../utils/billing'
 
-// Temporary in-memory view cache only. Nothing financial is written to
-// localStorage/IndexedDB. A reload starts from Google Sheets again.
-let cachedTransactions = null
-let cachedSummary = null
-let monthFetchPromise = null
+// In-memory view cache only. Financial data is never written to browser storage.
+const monthCache = new Map()
+const monthPromises = new Map()
 
 function cloneTransactions(items) {
   return items ? items.map(item => ({ ...item })) : null
 }
 
-function clearFinancialViewCache() {
-  cachedTransactions = null
-  cachedSummary = null
-  monthFetchPromise = null
+function cacheFor(monthKey) {
+  return monthCache.get(monthKey) ?? null
 }
 
-async function apiRequest(action, payload = {}) {
+function clearMonthCache(monthKey) {
+  monthCache.delete(monthKey)
+  monthPromises.delete(monthKey)
+}
+
+function clearAllFinancialViewCache() {
+  monthCache.clear()
+  monthPromises.clear()
+}
+
+async function apiRequest(action, payload = {}, monthKey = getMonthKey()) {
   const response = await fetch('/api/data', {
     method: 'POST',
     credentials: 'include',
@@ -24,7 +30,7 @@ async function apiRequest(action, payload = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action,
-      monthKey: getMonthKey(),
+      monthKey,
       ...payload,
     }),
   })
@@ -32,7 +38,7 @@ async function apiRequest(action, payload = {}) {
   const data = await response.json().catch(() => ({}))
 
   if (response.status === 401) {
-    clearFinancialViewCache()
+    clearAllFinancialViewCache()
     window.location.assign('/')
     throw new Error('Not signed in')
   }
@@ -44,89 +50,104 @@ async function apiRequest(action, payload = {}) {
   return data.result
 }
 
-async function loadMonth() {
-  // Summary + transactions share ONE browser request. Concurrent callers use
-  // the same promise, so a Summary render never fires two requests.
-  if (monthFetchPromise) return monthFetchPromise
+async function loadMonth(monthKey = getMonthKey()) {
+  const cached = cacheFor(monthKey)
+  if (cached) {
+    return {
+      summary: cached.summary ? { ...cached.summary } : null,
+      transactions: cloneTransactions(cached.transactions) ?? [],
+    }
+  }
 
-  monthFetchPromise = apiRequest('loadMonth')
+  if (monthPromises.has(monthKey)) return monthPromises.get(monthKey)
+
+  const promise = apiRequest('loadMonth', {}, monthKey)
     .then(result => {
-      cachedSummary = result?.summary ? { ...result.summary } : null
-      cachedTransactions = cloneTransactions(result?.transactions ?? [])
+      const value = {
+        summary: result?.summary ? { ...result.summary } : null,
+        transactions: cloneTransactions(result?.transactions ?? []) ?? [],
+      }
+      monthCache.set(monthKey, value)
       return {
-        summary: cachedSummary ? { ...cachedSummary } : null,
-        transactions: cloneTransactions(cachedTransactions) ?? [],
+        summary: value.summary ? { ...value.summary } : null,
+        transactions: cloneTransactions(value.transactions) ?? [],
       }
     })
     .finally(() => {
-      monthFetchPromise = null
+      monthPromises.delete(monthKey)
     })
 
-  return monthFetchPromise
+  monthPromises.set(monthKey, promise)
+  return promise
 }
 
-export function getCachedTransactions() {
-  return cloneTransactions(cachedTransactions)
+export function getCachedTransactions(monthKey = getMonthKey()) {
+  return cloneTransactions(cacheFor(monthKey)?.transactions)
 }
 
-export function getCachedSummary() {
-  return cachedSummary ? { ...cachedSummary } : null
+export function getCachedSummary(monthKey = getMonthKey()) {
+  const summary = cacheFor(monthKey)?.summary
+  return summary ? { ...summary } : null
 }
 
-export async function fetchTransactions() {
-  const result = await loadMonth()
+export async function fetchTransactions(monthKey = getMonthKey()) {
+  const result = await loadMonth(monthKey)
   return cloneTransactions(result.transactions) ?? []
 }
 
-export async function fetchSummary() {
-  const result = await loadMonth()
+export async function fetchSummary(monthKey = getMonthKey()) {
+  const result = await loadMonth(monthKey)
   return result.summary ? { ...result.summary } : null
 }
 
-export async function preloadFinancialData() {
-  await loadMonth()
+export async function preloadFinancialData(monthKey = getMonthKey()) {
+  await loadMonth(monthKey)
 }
 
-export async function appendTransaction(transaction) {
-  const result = await apiRequest('appendTransaction', { transaction })
-  clearFinancialViewCache()
+export async function fetchAvailableMonths() {
+  const result = await apiRequest('listMonths', {}, getMonthKey())
+  return Array.isArray(result) ? result : []
+}
+
+export async function appendTransaction(transaction, monthKey = getMonthKey()) {
+  const result = await apiRequest('appendTransaction', { transaction }, monthKey)
+  clearMonthCache(monthKey)
   return result
 }
 
-export async function updateTransaction(transaction) {
-  const result = await apiRequest('updateTransaction', { transaction })
-  clearFinancialViewCache()
+export async function updateTransaction(transaction, monthKey = getMonthKey()) {
+  const result = await apiRequest('updateTransaction', { transaction }, monthKey)
+  clearMonthCache(monthKey)
   return result
 }
 
-export async function deleteTransaction(rowIndex) {
-  const result = await apiRequest('deleteTransaction', { rowIndex })
-  clearFinancialViewCache()
+export async function deleteTransaction(rowIndex, monthKey = getMonthKey()) {
+  const result = await apiRequest('deleteTransaction', { rowIndex }, monthKey)
+  clearMonthCache(monthKey)
   return result
 }
 
-export async function updateSummaryCell(cell, value) {
-  return updateSummaryCells([[cell, value]])
+export async function updateSummaryCell(cell, value, monthKey = getMonthKey()) {
+  return updateSummaryCells([[cell, value]], monthKey)
 }
 
-export async function updateSummaryCells(updates) {
+export async function updateSummaryCells(updates, monthKey = getMonthKey()) {
   const cleanUpdates = (updates ?? []).filter(
     item => Array.isArray(item) && item.length >= 2 && item[0]
   )
   if (!cleanUpdates.length) return null
 
-  const result = await apiRequest('updateSummaryCells', { updates: cleanUpdates })
-  cachedSummary = null
-  monthFetchPromise = null
+  const result = await apiRequest('updateSummaryCells', { updates: cleanUpdates }, monthKey)
+  clearMonthCache(monthKey)
   return result
 }
 
-export async function ensureCurrentMonth() {
-  return apiRequest('ensureMonth')
+export async function ensureCurrentMonth(monthKey = getMonthKey()) {
+  return apiRequest('ensureMonth', {}, monthKey)
 }
 
 export async function ensureSpreadsheet() {
-  const result = await apiRequest('ensureMonth')
+  const result = await apiRequest('ensureMonth', {}, getMonthKey())
   return result?.spreadsheetId ?? null
 }
 

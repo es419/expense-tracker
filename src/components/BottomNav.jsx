@@ -32,10 +32,22 @@ function ChartIcon() {
   )
 }
 
+function AnalyticsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19V10" />
+      <path d="M10 19V5" />
+      <path d="M16 19v-7" />
+      <path d="M22 19V8" />
+    </svg>
+  )
+}
+
 const tabs = [
   { path: '/transactions', label: 'תנועות', icon: <ListIcon /> },
   { path: '/add', label: 'הוסף', icon: <PlusIcon /> },
   { path: '/summary', label: 'סיכום', icon: <ChartIcon /> },
+  { path: '/analytics', label: 'ניתוח', icon: <AnalyticsIcon /> },
 ]
 
 export default function BottomNav() {
@@ -99,7 +111,7 @@ const styles = {
     width: 'min(430px, calc(100% - 24px))',
     minHeight: '68px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
+    gridTemplateColumns: 'repeat(4, 1fr)',
     alignItems: 'stretch',
     gap: 0,
     padding: '8px',
@@ -115,7 +127,7 @@ const styles = {
     top: '8px',
     bottom: '8px',
     left: '8px',
-    width: 'calc((100% - 16px) / 3)',
+    width: 'calc((100% - 16px) / 4)',
     borderRadius: '16px',
     background: 'var(--nav-active-bg)',
     transition: `transform 380ms ${iosEase}`,

@@ -1,23 +1,30 @@
 import { useState, useEffect } from 'react'
 import { deleteTransaction, fetchTransactions, getCachedTransactions } from '../services/sheetsApi'
-import { formatHebrewDate, formatHebrewMonth, getCreditChargeDate, parseDate } from '../utils/billing'
+import { formatHebrewDate, formatHebrewMonth, getCreditChargeDate, getMonthStart, parseDate } from '../utils/billing'
+import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Transactions() {
-  const cached = getCachedTransactions()
+  const { selectedMonthKey } = useSelectedMonth()
+  const cached = getCachedTransactions(selectedMonthKey)
   const [transactions, setTransactions] = useState(() => cached ? [...cached].reverse() : [])
   const [loading, setLoading] = useState(() => !cached)
   const [error, setError] = useState(null)
   const [deletingRow, setDeletingRow] = useState(null)
 
   useEffect(() => {
-    load({ showLoader: !cached })
-  }, [])
+    const monthCached = getCachedTransactions(selectedMonthKey)
+    if (monthCached) {
+      setTransactions([...monthCached].reverse())
+      setLoading(false)
+    }
+    load({ showLoader: !monthCached })
+  }, [selectedMonthKey])
 
   async function load({ showLoader = false } = {}) {
     try {
       if (showLoader) setLoading(true)
       setError(null)
-      const data = await fetchTransactions()
+      const data = await fetchTransactions(selectedMonthKey)
       setTransactions([...data].reverse())
     } catch (e) {
       setError(e.message)
@@ -44,7 +51,7 @@ export default function Transactions() {
     try {
       setDeletingRow(t.rowIndex)
       setError(null)
-      await deleteTransaction(t.rowIndex)
+      await deleteTransaction(t.rowIndex, selectedMonthKey)
       await load()
     } catch (e) {
       window.alert(`לא הצלחתי למחוק את התנועה: ${e.message}`)
@@ -62,7 +69,7 @@ export default function Transactions() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>תנועות · {formatHebrewMonth()}</h2>
+      <h2 style={styles.title}>תנועות · {formatHebrewMonth(getMonthStart(selectedMonthKey))}</h2>
       <button onClick={() => load()} style={styles.refresh}>רענן</button>
       {transactions.length === 0 && (
         <p style={styles.empty}>אין תנועות עדיין</p>

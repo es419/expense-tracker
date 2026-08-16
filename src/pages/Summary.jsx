@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { fetchTransactions, fetchSummary, getCachedTransactions, getCachedSummary, updateSummaryCells } from '../services/sheetsApi'
 import { signOut } from '../services/googleAuth'
-import { computeFinancialState, formatHebrewDate, formatHebrewMonth } from '../utils/billing'
+import { computeFinancialState, formatHebrewDate, formatHebrewMonth, getMonthKey, getMonthStart } from '../utils/billing'
+import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Summary() {
-  const cachedSummary = getCachedSummary()
-  const cachedTransactions = getCachedTransactions()
+  const { selectedMonthKey } = useSelectedMonth()
+  const cachedSummary = getCachedSummary(selectedMonthKey)
+  const cachedTransactions = getCachedTransactions(selectedMonthKey)
   const [summary, setSummary] = useState(() => cachedSummary)
   const [transactions, setTransactions] = useState(() => cachedTransactions ?? [])
   const [loading, setLoading] = useState(() => !(cachedSummary && cachedTransactions))
@@ -20,13 +22,22 @@ export default function Summary() {
   const [savingSettings, setSavingSettings] = useState(false)
 
   useEffect(() => {
-    load({ showLoader: !(cachedSummary && cachedTransactions) })
-  }, [])
+    const monthSummary = getCachedSummary(selectedMonthKey)
+    const monthTransactions = getCachedTransactions(selectedMonthKey)
+
+    if (monthSummary && monthTransactions) {
+      setSummary(monthSummary)
+      setTransactions(monthTransactions)
+      setLoading(false)
+    }
+
+    load({ showLoader: !(monthSummary && monthTransactions) })
+  }, [selectedMonthKey])
 
   async function load({ showLoader = false } = {}) {
     try {
       if (showLoader) setLoading(true)
-      const [s, t] = await Promise.all([fetchSummary(), fetchTransactions()])
+      const [s, t] = await Promise.all([fetchSummary(selectedMonthKey), fetchTransactions(selectedMonthKey)])
       setSummary(s)
       setTransactions(t)
     } finally {
@@ -58,7 +69,7 @@ export default function Summary() {
     try {
       setSavingSettings(true)
 
-      await updateSummaryCells(updates)
+      await updateSummaryCells(updates, selectedMonthKey)
 
       setSettingsForm({
         checking: '',
@@ -77,7 +88,13 @@ export default function Summary() {
   if (loading) return <div style={styles.center} />
 
   const now = new Date()
-  const { checking, wallet, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(now)
+  const selectedStart = getMonthStart(selectedMonthKey)
+  const isCurrentMonth = selectedMonthKey === getMonthKey(now)
+  const referenceDate = isCurrentMonth
+    ? now
+    : new Date(selectedStart.getFullYear(), selectedStart.getMonth() + 1, 0, 23, 59, 59)
+
+  const { checking, wallet, credit, essentialSpent, discretionarySpent, nextCreditCharge } = compute(referenceDate)
   const estimatedAfterAllCharges = checking - credit
   const essentialBudget = Number(summary.essential) || 0
   const discretionaryBudget = Number(summary.discretionary) || 0
@@ -88,7 +105,7 @@ export default function Summary() {
       <div style={styles.header}>
         <div>
           <h2 style={styles.title}>סיכום</h2>
-          <div style={styles.month}>{formatHebrewMonth()}</div>
+          <div style={styles.month}>{formatHebrewMonth(selectedStart)}</div>
         </div>
       </div>
 

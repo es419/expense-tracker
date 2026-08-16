@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { appendTransaction } from '../services/sheetsApi'
 import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '../config/sheetsConfig'
-import { formatHebrewDate, formatHebrewMonth, formatIsoDate, getCreditChargeDate, toIsoDate } from '../utils/billing'
+import { formatHebrewDate, formatHebrewMonth, formatIsoDate, getCreditChargeDate, getMonthStart, toIsoDate } from '../utils/billing'
+import { useSelectedMonth } from '../context/MonthContext'
 
 function ChipRow({ label, options, value, onChange, allowClear = false }) {
   return (
@@ -29,16 +30,27 @@ function ChipRow({ label, options, value, onChange, allowClear = false }) {
 
 export default function AddTransaction() {
   const navigate = useNavigate()
+  const { selectedMonthKey } = useSelectedMonth()
   const dateInputRef = useRef(null)
   const today = toIsoDate()
 
-  const [date, setDate] = useState(today)
+  function initialDateForMonth(monthKey) {
+    return today.startsWith(`${monthKey}-`) ? today : `${monthKey}-01`
+  }
+
+  const [date, setDate] = useState(() => initialDateForMonth(selectedMonthKey))
   const [type, setType] = useState('הוצאה')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
   const [budget, setBudget] = useState('')
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0])
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!date.startsWith(`${selectedMonthKey}-`)) {
+      setDate(initialDateForMonth(selectedMonthKey))
+    }
+  }, [selectedMonthKey])
 
   const automaticChargeDate = useMemo(() => {
     if (paymentMethod !== 'אשראי' || type !== 'הוצאה') return date
@@ -62,7 +74,7 @@ export default function AddTransaction() {
         budget: isWalletTransfer ? '' : budget,
         paymentMethod: isWalletTransfer ? 'עו״ש' : paymentMethod,
         chargeDate,
-      })
+      }, selectedMonthKey)
       navigate('/transactions')
     } catch (e) {
       alert('שגיאה בשמירה: ' + e.message)
@@ -73,7 +85,7 @@ export default function AddTransaction() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>תנועה חדשה · {formatHebrewMonth()}</h2>
+      <h2 style={styles.title}>תנועה חדשה · {formatHebrewMonth(getMonthStart(selectedMonthKey))}</h2>
 
       <div style={styles.field}>
         <label style={styles.label}>תאריך</label>
@@ -90,6 +102,8 @@ export default function AddTransaction() {
             ref={dateInputRef}
             style={styles.hiddenDateInput}
             type="date"
+            min={`${selectedMonthKey}-01`}
+            max={formatIsoDate(new Date(Number(selectedMonthKey.slice(0, 4)), Number(selectedMonthKey.slice(5, 7)), 0))}
             value={date}
             onChange={e => setDate(e.target.value)}
           />

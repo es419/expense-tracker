@@ -9,6 +9,7 @@ import {
   deleteTransaction,
   ensureMonthOnly,
   loadCurrentMonth,
+  listAvailableMonths,
   updateSummaryCells,
   updateTransaction,
 } from '../server/expenseStore.js'
@@ -33,6 +34,8 @@ async function executeAction(session, body) {
       return loadCurrentMonth(session.accessToken, session.cacheKey, monthKey)
     case 'ensureMonth':
       return ensureMonthOnly(session.accessToken, session.cacheKey, monthKey)
+    case 'listMonths':
+      return listAvailableMonths(session.accessToken, session.cacheKey, monthKey)
     case 'appendTransaction':
       return appendTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction)
     case 'updateTransaction':

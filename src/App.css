@@ -71,3 +71,14 @@ body {
     animation: none !important;
   }
 }
+
+
+.tabScene {
+  padding-top: 58px;
+}
+
+@media (max-width: 380px) {
+  .tabScene {
+    padding-top: 56px;
+  }
+}
