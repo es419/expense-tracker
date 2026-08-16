@@ -11,6 +11,7 @@ export const TRANSACTION_COLUMNS = [
   'budget',
   'paymentMethod',
   'chargeDate',
+  'description',
 ]
 
 export const TRANSACTION_HEADERS = [
@@ -21,6 +22,7 @@ export const TRANSACTION_HEADERS = [
   'תקציב',
   'אמצעי תשלום',
   'תאריך חיוב',
+  'תיאור',
 ]
 
 export const TRANSACTION_TYPES = ['הוצאה', 'הכנסה', 'העברה לארנק']

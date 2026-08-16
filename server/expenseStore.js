@@ -196,7 +196,7 @@ async function writeInitialMonthValues(googleRequest, spreadsheetId, tabs, value
     body: JSON.stringify({
       valueInputOption: 'USER_ENTERED',
       data: [
-        { range: a1(tabs.transactions, 'A1:G1'), values: [TRANSACTION_HEADERS] },
+        { range: a1(tabs.transactions, 'A1:H1'), values: [TRANSACTION_HEADERS] },
         {
           range: a1(tabs.summary, 'A1:B8'),
           values: [
@@ -280,7 +280,7 @@ async function resolveSpreadsheet(googleRequest, session, monthKey) {
 async function readMonthDataRaw(googleRequest, spreadsheetId, monthKey) {
   const tabs = tabsForMonth(monthKey)
   const ranges = [
-    a1(tabs.transactions, 'A2:G'),
+    a1(tabs.transactions, 'A2:H'),
     a1(tabs.summary, 'B2'),
     a1(tabs.summary, 'B3'),
     a1(tabs.summary, 'B4'),
@@ -382,7 +382,7 @@ async function createMonthTabs(googleRequest, spreadsheetId, metadata, monthKey)
 
   const data = []
   if (missingTransactions) {
-    data.push({ range: a1(tabs.transactions, 'A1:G1'), values: [TRANSACTION_HEADERS] })
+    data.push({ range: a1(tabs.transactions, 'A1:H1'), values: [TRANSACTION_HEADERS] })
   }
   if (missingSummary) {
     data.push({
@@ -502,7 +502,7 @@ export async function loadCurrentMonth(accessToken, cacheKey, monthKey) {
 
 export async function appendTransaction(accessToken, cacheKey, monthKey, transaction) {
   const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
-  const range = a1(context.tabs.transactions, 'A2:G')
+  const range = a1(context.tabs.transactions, 'A2:H')
   return context.googleRequest(
     `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
     {
@@ -517,7 +517,7 @@ export async function updateTransaction(accessToken, cacheKey, monthKey, transac
   if (!Number.isInteger(row) || row < 2) throw new Error('Invalid transaction row')
 
   const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
-  const range = a1(context.tabs.transactions, `A${row}:G${row}`)
+  const range = a1(context.tabs.transactions, `A${row}:H${row}`)
   return context.googleRequest(
     `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
     {

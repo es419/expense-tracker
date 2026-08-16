@@ -44,6 +44,7 @@ export default function AddTransaction() {
   const [category, setCategory] = useState(CATEGORIES[0])
   const [budget, setBudget] = useState('')
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0])
+  const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function AddTransaction() {
         budget: isWalletTransfer ? '' : budget,
         paymentMethod: isWalletTransfer ? 'עו״ש' : paymentMethod,
         chargeDate,
+        description: description.trim(),
       }, selectedMonthKey)
       navigate('/transactions')
     } catch (e) {
@@ -128,6 +130,18 @@ export default function AddTransaction() {
         />
       </div>
 
+      <div style={styles.field}>
+        <label style={styles.label}>תיאור (אופציונלי)</label>
+        <input
+          style={styles.input}
+          type="text"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="למשל: תיקון, החזר, הערה"
+          maxLength={120}
+        />
+      </div>
+
       <ChipRow label="סוג" options={TRANSACTION_TYPES} value={type} onChange={setType} />
 
       {type !== 'העברה לארנק' && (
@@ -160,22 +174,24 @@ export default function AddTransaction() {
         </div>
       )}
 
-      <button onClick={save} disabled={saving} style={styles.saveBtn}>
-        {saving ? 'שומר...' : 'שמור'}
-      </button>
+      <div style={styles.saveBar}>
+        <button onClick={save} disabled={saving} style={styles.saveBtn}>
+          {saving ? 'שומר...' : 'שמור'}
+        </button>
+      </div>
     </div>
   )
 }
 
 const styles = {
   container: {
-    padding: '8px 16px 68px',
+    padding: '10px 16px 112px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
   title: {
-    marginBottom: '6px',
+    marginBottom: '8px',
     padding: '0 54px',
     boxSizing: 'border-box',
     width: '100%',
@@ -184,7 +200,7 @@ const styles = {
     lineHeight: 1.2,
   },
   field: {
-    marginBottom: '6px',
+    marginBottom: '8px',
   },
   choiceField: {
     marginBottom: '6px',
@@ -296,6 +312,13 @@ const styles = {
     background: 'var(--surface-soft)',
     fontSize: '14px',
     textAlign: 'center',
+  },
+  saveBar: {
+    position: 'sticky',
+    bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
+    paddingTop: '10px',
+    marginTop: '10px',
+    background: 'var(--bg)',
   },
   saveBtn: {
     width: '100%',

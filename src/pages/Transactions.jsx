@@ -78,6 +78,7 @@ export default function Transactions() {
         <div key={t.rowIndex ?? i} style={styles.row}>
           <div style={styles.details}>
             <div style={styles.category}>{t.category}</div>
+            {t.description ? <div style={styles.description}>{t.description}</div> : null}
             <div style={styles.meta}>{transactionMeta(t)}</div>
           </div>
           <div style={styles.actions}>
@@ -157,6 +158,7 @@ const styles = {
   details: { minWidth: 0, flex: 1 },
   actions: { display: 'flex', alignItems: 'center', gap: '10px' },
   category: { fontWeight: '600', fontSize: '16px' },
+  description: { fontSize: '13px', color: 'var(--text)', marginTop: '3px', lineHeight: 1.35 },
   meta: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' },
   income: { color: 'var(--income)', fontWeight: '600', whiteSpace: 'nowrap' },
   expense: { color: 'var(--expense)', fontWeight: '600', whiteSpace: 'nowrap' },

@@ -48,11 +48,8 @@ export default function MonthFilter() {
 
   return (
     <section style={styles.section} aria-label="ניהול חודש">
-      <h2 style={styles.heading}>ניהול חודש</h2>
-
       <div style={styles.fields}>
         <label style={styles.field}>
-          <span style={styles.label}>שנה</span>
           <select
             style={styles.select}
             value={selectedYear}
@@ -66,7 +63,6 @@ export default function MonthFilter() {
         </label>
 
         <label style={styles.field}>
-          <span style={styles.label}>חודש</span>
           <select
             style={styles.select}
             value={selectedMonth}
@@ -91,46 +87,31 @@ export default function MonthFilter() {
 const styles = {
   section: {
     width: 'min(480px, calc(100% - 32px))',
-    margin: '10px auto 2px',
+    margin: '18px auto 6px',
     padding: '0',
     direction: 'rtl',
     boxSizing: 'border-box',
   },
-  heading: {
-    margin: '0 0 14px',
-    textAlign: 'center',
-    color: 'var(--text)',
-    fontSize: '22px',
-    lineHeight: 1.2,
-    fontWeight: 800,
-  },
   fields: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
+    gap: '10px',
   },
   field: {
     display: 'grid',
-    gap: '7px',
     minWidth: 0,
-  },
-  label: {
-    paddingRight: '4px',
-    color: 'var(--text-muted)',
-    fontSize: '12px',
-    fontWeight: 750,
   },
   select: {
     width: '100%',
     minWidth: 0,
-    minHeight: '54px',
-    padding: '0 14px',
+    minHeight: '50px',
+    padding: '0 12px',
     border: '1px solid var(--border)',
     borderRadius: '16px',
     background: 'var(--surface)',
     color: 'var(--text)',
-    fontSize: '18px',
-    fontWeight: 780,
+    fontSize: '16px',
+    fontWeight: 700,
     outline: 'none',
     direction: 'rtl',
     boxSizing: 'border-box',

@@ -74,11 +74,11 @@ body {
 
 
 .tabScene {
-  padding-top: 54px;
+  padding-top: 50px;
 }
 
 @media (max-width: 380px) {
   .tabScene {
-    padding-top: 52px;
+    padding-top: 48px;
   }
 }
