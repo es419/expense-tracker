@@ -87,15 +87,16 @@ export default function MonthFilter() {
 const styles = {
   section: {
     width: '100%',
-    margin: '0 auto',
+    margin: '6px auto 0',
     padding: '0',
     direction: 'rtl',
+    textAlign: 'center',
     boxSizing: 'border-box',
   },
   fields: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '10px',
+    gap: '12px',
   },
   field: {
     display: 'grid',
@@ -104,16 +105,17 @@ const styles = {
   select: {
     width: '100%',
     minWidth: 0,
-    minHeight: '48px',
-    padding: '0 12px',
+    minHeight: '56px',
+    padding: '0 18px',
     border: '1px solid var(--border)',
-    borderRadius: '15px',
+    borderRadius: '17px',
     background: 'var(--surface)',
     color: 'var(--text)',
-    fontSize: '16px',
-    fontWeight: 700,
+    fontSize: '18px',
+    fontWeight: 800,
     outline: 'none',
     direction: 'rtl',
+    textAlign: 'center',
     boxSizing: 'border-box',
   },
 }

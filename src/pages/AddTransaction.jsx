@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { appendTransaction } from '../services/sheetsApi'
 import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '../config/sheetsConfig'
 import { formatHebrewDate, formatIsoDate, getCreditChargeDate, toIsoDate } from '../utils/billing'
@@ -86,7 +87,8 @@ export default function AddTransaction() {
   }
 
   return (
-    <div style={styles.container}>
+    <>
+      <div style={styles.container}>
       <div style={styles.field}>
         <label style={styles.label}>תאריך</label>
         <button
@@ -172,12 +174,17 @@ export default function AddTransaction() {
         </div>
       )}
 
-      <div style={styles.saveBar}>
-        <button onClick={save} disabled={saving} style={styles.saveBtn}>
-          {saving ? 'שומר...' : 'שמור'}
-        </button>
       </div>
-    </div>
+
+      {createPortal(
+        <div style={styles.saveBar}>
+          <button onClick={save} disabled={saving} style={styles.saveBtn}>
+            {saving ? 'שומר...' : 'שמור'}
+          </button>
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -313,12 +320,12 @@ const styles = {
   },
   saveBar: {
     position: 'fixed',
-    zIndex: 24,
+    zIndex: 40,
     left: '50%',
-    bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
+    bottom: 'calc(94px + env(safe-area-inset-bottom, 0px))',
     transform: 'translateX(-50%)',
     width: 'min(448px, calc(100% - 32px))',
-    padding: '8px 0',
+    padding: '6px 0',
     background: 'var(--bg)',
   },
   saveBtn: {
