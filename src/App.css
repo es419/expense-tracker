@@ -19,3 +19,59 @@ body {
   color: var(--text);
   transition: color 180ms ease;
 }
+
+
+.page-stage {
+  min-height: 100svh;
+  animation: native-page-enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: 50% 24%;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes native-page-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 7px, 0) scale(0.992);
+    filter: blur(1.2px);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+::view-transition-old(root) {
+  animation: native-view-old 210ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(root) {
+  animation: native-view-new 330ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes native-view-old {
+  to {
+    opacity: 0.42;
+    transform: scale(0.992);
+    filter: blur(0.7px);
+  }
+}
+
+@keyframes native-view-new {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.994);
+    filter: blur(0.8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-stage,
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

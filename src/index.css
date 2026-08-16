@@ -1,14 +1,14 @@
 :root {
   --bg: #eaf2ff;
-  --surface: rgba(255, 255, 255, 0.48);
-  --surface-soft: rgba(255, 255, 255, 0.34);
-  --surface-strong: rgba(255, 255, 255, 0.62);
-  --glass-field: rgba(255, 255, 255, 0.42);
-  --glass-highlight: rgba(255, 255, 255, 0.76);
+  --surface: rgba(255, 255, 255, 0.39);
+  --surface-soft: rgba(255, 255, 255, 0.27);
+  --surface-strong: rgba(255, 255, 255, 0.56);
+  --glass-field: rgba(255, 255, 255, 0.33);
+  --glass-highlight: rgba(255, 255, 255, 0.84);
   --text: #172033;
   --text-muted: #69768a;
-  --border: rgba(255, 255, 255, 0.62);
-  --border-subtle: rgba(93, 117, 151, 0.18);
+  --border: rgba(255, 255, 255, 0.58);
+  --border-subtle: rgba(86, 111, 147, 0.14);
   --primary: #4f8df7;
   --primary-hover: #3d7fe9;
   --primary-text: #ffffff;
@@ -17,14 +17,14 @@
   --income: #269b55;
   --expense: #d84848;
   --danger-bg: rgba(216, 72, 72, 0.10);
-  --shadow: 0 18px 44px rgba(45, 67, 98, 0.13), inset 0 1px 0 rgba(255,255,255,0.55);
-  --shadow-soft: 0 10px 28px rgba(45, 67, 98, 0.10), inset 0 1px 0 rgba(255,255,255,0.46);
-  --glass-blur: blur(26px) saturate(180%);
-  --nav-bg: rgba(244, 249, 255, 0.62);
+  --shadow: 0 22px 58px rgba(39, 62, 95, 0.14), inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -1px 0 rgba(255,255,255,0.14);
+  --shadow-soft: 0 12px 32px rgba(39, 62, 95, 0.10), inset 0 1px 0 rgba(255,255,255,0.64), inset 0 -1px 0 rgba(255,255,255,0.10);
+  --glass-blur: blur(32px) saturate(195%) contrast(103%);
+  --nav-bg: rgba(246, 250, 255, 0.48);
   --nav-active-bg: rgba(74, 132, 236, 0.20);
   --nav-active-text: #2f6fcf;
-  --nav-shadow: 0 20px 55px rgba(30, 58, 95, 0.22), inset 0 1px 0 rgba(255,255,255,0.78);
-  --theme-toggle-bg: rgba(247, 250, 255, 0.58);
+  --nav-shadow: 0 22px 62px rgba(27, 54, 89, 0.22), inset 0 1px 0 rgba(255,255,255,0.86), inset 0 -1px 0 rgba(255,255,255,0.12);
+  --theme-toggle-bg: rgba(247, 251, 255, 0.48);
   --theme-color: #eaf2ff;
   --app-background:
     radial-gradient(circle at 84% 8%, rgba(92, 150, 255, 0.26), transparent 25rem),
@@ -44,14 +44,14 @@
 
 :root[data-theme='dark'] {
   --bg: #08111c;
-  --surface: rgba(22, 32, 46, 0.54);
-  --surface-soft: rgba(27, 39, 55, 0.42);
-  --surface-strong: rgba(42, 57, 77, 0.62);
-  --glass-field: rgba(26, 38, 54, 0.52);
-  --glass-highlight: rgba(255, 255, 255, 0.13);
+  --surface: rgba(20, 31, 45, 0.46);
+  --surface-soft: rgba(25, 38, 54, 0.34);
+  --surface-strong: rgba(39, 55, 75, 0.55);
+  --glass-field: rgba(23, 36, 52, 0.44);
+  --glass-highlight: rgba(255, 255, 255, 0.17);
   --text: #f5f8fc;
   --text-muted: #9aa8b9;
-  --border: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.14);
   --border-subtle: rgba(255, 255, 255, 0.08);
   --primary: #5d98ff;
   --primary-hover: #72a6ff;
@@ -61,13 +61,13 @@
   --income: #64ce7b;
   --expense: #ff7676;
   --danger-bg: rgba(255, 118, 118, 0.12);
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255,255,255,0.09);
-  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255,255,255,0.07);
-  --nav-bg: rgba(16, 26, 39, 0.68);
+  --shadow: 0 22px 60px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(255,255,255,0.03);
+  --shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(255,255,255,0.025);
+  --nav-bg: rgba(14, 24, 37, 0.55);
   --nav-active-bg: rgba(95, 153, 255, 0.19);
   --nav-active-text: #a7c8ff;
-  --nav-shadow: 0 20px 55px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255,255,255,0.10);
-  --theme-toggle-bg: rgba(19, 30, 44, 0.68);
+  --nav-shadow: 0 24px 64px rgba(0, 0, 0, 0.46), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(255,255,255,0.025);
+  --theme-toggle-bg: rgba(18, 29, 43, 0.56);
   --theme-color: #08111c;
   --app-background:
     radial-gradient(circle at 84% 8%, rgba(43, 102, 204, 0.30), transparent 27rem),
@@ -118,4 +118,56 @@ input {
 
 ::selection {
   background: color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+
+#root {
+  position: relative;
+  isolation: isolate;
+}
+
+#root::before,
+#root::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(55px);
+  opacity: 0.72;
+  transform: translateZ(0);
+}
+
+#root::before {
+  width: 240px;
+  height: 240px;
+  top: 9vh;
+  right: max(-90px, calc(50vw - 330px));
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+#root::after {
+  width: 210px;
+  height: 210px;
+  bottom: 12vh;
+  left: max(-95px, calc(50vw - 330px));
+  background: color-mix(in srgb, #78d7ff 12%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #root::before {
+    animation: ambient-float-a 12s ease-in-out infinite alternate;
+  }
+
+  #root::after {
+    animation: ambient-float-b 15s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes ambient-float-a {
+  to { transform: translate3d(-10px, 14px, 0) scale(1.05); }
+}
+
+@keyframes ambient-float-b {
+  to { transform: translate3d(12px, -10px, 0) scale(1.04); }
 }

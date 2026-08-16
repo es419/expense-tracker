@@ -44,6 +44,17 @@ export default function BottomNav() {
 
   const activeIndex = Math.max(0, tabs.findIndex(tab => tab.path === location.pathname))
 
+  function navigateTo(path) {
+    if (path === location.pathname) return
+
+    if (document.startViewTransition) {
+      document.startViewTransition(() => navigate(path))
+      return
+    }
+
+    navigate(path)
+  }
+
   return (
     <nav style={styles.nav} aria-label="תפריט ניווט תחתון">
       <div style={styles.topReflection} />
@@ -61,7 +72,7 @@ export default function BottomNav() {
           <button
             key={tab.path}
             type="button"
-            onClick={() => navigate(tab.path)}
+            onClick={() => navigateTo(tab.path)}
             style={{
               ...styles.tab,
               ...(active ? styles.tabActive : null),
@@ -84,7 +95,7 @@ export default function BottomNav() {
   )
 }
 
-const iosEase = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const iosEase = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
 const styles = {
   nav: {
@@ -101,10 +112,10 @@ const styles = {
     padding: '8px',
     border: '1px solid var(--border)',
     borderRadius: '26px',
-    background: 'color-mix(in srgb, var(--nav-bg) 92%, transparent)',
+    background: 'linear-gradient(180deg, color-mix(in srgb, var(--nav-bg) 94%, white 3%), color-mix(in srgb, var(--nav-bg) 88%, transparent))',
     boxShadow: 'var(--nav-shadow)',
-    backdropFilter: 'blur(34px) saturate(190%)',
-    WebkitBackdropFilter: 'blur(34px) saturate(190%)',
+    backdropFilter: 'blur(38px) saturate(205%)',
+    WebkitBackdropFilter: 'blur(38px) saturate(205%)',
     overflow: 'hidden',
   },
   topReflection: {
@@ -126,9 +137,11 @@ const styles = {
     width: 'calc((100% - 16px) / 3)',
     borderRadius: '19px',
     border: '1px solid color-mix(in srgb, var(--primary) 26%, var(--border))',
-    background: 'color-mix(in srgb, var(--nav-active-bg) 88%, transparent)',
-    boxShadow: '0 9px 24px color-mix(in srgb, var(--primary) 15%, transparent), inset 0 1px 0 var(--glass-highlight)',
-    transition: `transform 430ms ${iosEase}`,
+    background: 'linear-gradient(180deg, color-mix(in srgb, var(--nav-active-bg) 92%, white 5%), color-mix(in srgb, var(--nav-active-bg) 82%, transparent))',
+    boxShadow: '0 10px 28px color-mix(in srgb, var(--primary) 17%, transparent), inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 color-mix(in srgb, var(--primary) 8%, transparent)',
+    backdropFilter: 'blur(28px) saturate(190%)',
+    WebkitBackdropFilter: 'blur(28px) saturate(190%)',
+    transition: `transform 520ms ${iosEase}`,
     willChange: 'transform',
     pointerEvents: 'none',
   },
@@ -148,7 +161,7 @@ const styles = {
     gap: '4px',
     cursor: 'pointer',
     fontWeight: 740,
-    transition: `color 300ms ${iosEase}, transform 300ms ${iosEase}`,
+    transition: `color 300ms ${iosEase}, transform 360ms ${iosEase}, opacity 260ms ${iosEase}`,
   },
   tabActive: {
     color: 'var(--nav-active-text)',

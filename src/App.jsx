@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import SignIn from './pages/SignIn'
 import Transactions from './pages/Transactions'
 import AddTransaction from './pages/AddTransaction'
@@ -20,6 +20,22 @@ function getInitialThemePreference() {
 
 function getSystemTheme() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function AnimatedRoutes() {
+  const location = useLocation()
+
+  return (
+    <div key={location.pathname} className="page-stage">
+      <Routes location={location}>
+        <Route path="/" element={<Navigate to="/add" replace />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/add" element={<AddTransaction />} />
+        <Route path="/summary" element={<Summary />} />
+        <Route path="*" element={<Navigate to="/add" replace />} />
+      </Routes>
+    </div>
+  )
 }
 
 function App() {
@@ -96,13 +112,7 @@ function App() {
     <BrowserRouter>
       <div className="app">
         <ThemeMenu value={themePreference} onChange={setThemePreference} />
-        <Routes>
-          <Route path="/" element={<Navigate to="/add" replace />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/add" element={<AddTransaction />} />
-          <Route path="/summary" element={<Summary />} />
-          <Route path="*" element={<Navigate to="/add" replace />} />
-        </Routes>
+        <AnimatedRoutes />
         <BottomNav />
       </div>
     </BrowserRouter>

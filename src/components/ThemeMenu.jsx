@@ -147,7 +147,7 @@ const glassBase = {
   WebkitBackdropFilter: 'var(--glass-blur)',
 }
 
-const iosEase = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const iosEase = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
 const styles = {
   menuButton: {
@@ -209,13 +209,13 @@ const styles = {
     color: 'var(--text)',
     borderLeft: '1px solid var(--border)',
     boxShadow: '-28px 0 70px rgba(0, 0, 0, 0.24), inset 1px 0 0 var(--glass-highlight)',
-    backdropFilter: 'blur(34px) saturate(185%)',
-    WebkitBackdropFilter: 'blur(34px) saturate(185%)',
+    backdropFilter: 'blur(40px) saturate(205%)',
+    WebkitBackdropFilter: 'blur(40px) saturate(205%)',
     direction: 'rtl',
     textAlign: 'right',
     overflow: 'hidden',
     transformOrigin: 'right center',
-    transition: `transform 420ms ${iosEase}, opacity 260ms ${iosEase}`,
+    transition: `transform 480ms ${iosEase}, opacity 280ms ${iosEase}`,
     willChange: 'transform, opacity',
   },
   drawerOpen: {
@@ -223,7 +223,7 @@ const styles = {
     opacity: 1,
   },
   drawerClosed: {
-    transform: 'translate3d(104%, 0, 0) scale(0.985)',
+    transform: 'translate3d(102%, 0, 0) scale(0.992)',
     opacity: 0.72,
   },
   drawerGlow: {
