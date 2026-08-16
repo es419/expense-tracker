@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import SignIn from './pages/SignIn'
 import Transactions from './pages/Transactions'
@@ -22,11 +22,23 @@ function getSystemTheme() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+const ROUTE_ORDER = ['/transactions', '/add', '/summary']
+
 function AnimatedRoutes() {
   const location = useLocation()
+  const previousIndexRef = useRef(
+    Math.max(0, ROUTE_ORDER.indexOf(location.pathname))
+  )
+
+  const currentIndex = Math.max(0, ROUTE_ORDER.indexOf(location.pathname))
+  const direction = currentIndex >= previousIndexRef.current ? 'forward' : 'back'
+
+  useEffect(() => {
+    previousIndexRef.current = currentIndex
+  }, [currentIndex])
 
   return (
-    <div key={location.pathname} className="page-stage">
+    <div key={location.pathname} className={`tabScene ${direction}`}>
       <Routes location={location}>
         <Route path="/" element={<Navigate to="/add" replace />} />
         <Route path="/transactions" element={<Transactions />} />

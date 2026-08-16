@@ -19,11 +19,11 @@
   --danger-bg: rgba(216, 72, 72, 0.10);
   --shadow: 0 22px 58px rgba(39, 62, 95, 0.14), inset 0 1px 0 rgba(255,255,255,0.72), inset 0 -1px 0 rgba(255,255,255,0.14);
   --shadow-soft: 0 12px 32px rgba(39, 62, 95, 0.10), inset 0 1px 0 rgba(255,255,255,0.64), inset 0 -1px 0 rgba(255,255,255,0.10);
-  --glass-blur: blur(32px) saturate(195%) contrast(103%);
-  --nav-bg: rgba(246, 250, 255, 0.48);
+  --glass-blur: blur(34px) saturate(178%) contrast(103%);
+  --nav-bg: rgba(255, 255, 255, 0.46);
   --nav-active-bg: rgba(74, 132, 236, 0.20);
   --nav-active-text: #2f6fcf;
-  --nav-shadow: 0 22px 62px rgba(27, 54, 89, 0.22), inset 0 1px 0 rgba(255,255,255,0.86), inset 0 -1px 0 rgba(255,255,255,0.12);
+  --nav-shadow: 0 22px 48px rgba(39,55,88,.18), inset 0 1px 0 rgba(255,255,255,.94), inset 0 -1px 0 rgba(255,255,255,.16);
   --theme-toggle-bg: rgba(247, 251, 255, 0.48);
   --theme-color: #eaf2ff;
   --app-background:

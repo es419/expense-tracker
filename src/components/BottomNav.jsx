@@ -82,7 +82,7 @@ export default function BottomNav() {
             <span
               style={{
                 ...styles.icon,
-                transform: active ? 'translateY(-1px) scale(1.04)' : 'translateY(0) scale(1)',
+                transform: active ? 'translateY(-1px) scale(1.085)' : 'translateY(0) scale(.96)',
               }}
             >
               {tab.icon}
@@ -95,7 +95,7 @@ export default function BottomNav() {
   )
 }
 
-const iosEase = 'cubic-bezier(0.16, 1, 0.3, 1)'
+const iosEase = 'cubic-bezier(.16, 1.08, .30, 1)'
 
 const styles = {
   nav: {
@@ -141,7 +141,7 @@ const styles = {
     boxShadow: '0 10px 28px color-mix(in srgb, var(--primary) 17%, transparent), inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 color-mix(in srgb, var(--primary) 8%, transparent)',
     backdropFilter: 'blur(28px) saturate(190%)',
     WebkitBackdropFilter: 'blur(28px) saturate(190%)',
-    transition: `transform 520ms ${iosEase}`,
+    transition: `transform 440ms ${iosEase}, box-shadow 260ms ease`,
     willChange: 'transform',
     pointerEvents: 'none',
   },
@@ -161,7 +161,7 @@ const styles = {
     gap: '4px',
     cursor: 'pointer',
     fontWeight: 740,
-    transition: `color 300ms ${iosEase}, transform 360ms ${iosEase}, opacity 260ms ${iosEase}`,
+    transition: 'color 180ms ease, transform 150ms cubic-bezier(.2,.8,.2,1), opacity 150ms ease',
   },
   tabActive: {
     color: 'var(--nav-active-text)',
@@ -170,7 +170,7 @@ const styles = {
     display: 'grid',
     placeItems: 'center',
     height: '22px',
-    transition: `transform 360ms ${iosEase}`,
+    transition: 'transform 280ms cubic-bezier(.2,.8,.2,1)',
     willChange: 'transform',
   },
   label: {

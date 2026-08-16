@@ -71,3 +71,56 @@ body {
     animation: none !important;
   }
 }
+
+
+/* Same motion model used by the attendance app:
+   one short incoming scene animation, never layered with browser transitions. */
+.tabScene {
+  transform-origin: 50% 42%;
+  will-change: transform, opacity;
+  animation-duration: 285ms;
+  animation-timing-function: cubic-bezier(.2, .82, .22, 1);
+  animation-fill-mode: both;
+}
+
+.tabScene.forward {
+  animation-name: expenseSceneForward;
+}
+
+.tabScene.back {
+  animation-name: expenseSceneBack;
+}
+
+@keyframes expenseSceneForward {
+  0% {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0) scale(.996);
+  }
+  58% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes expenseSceneBack {
+  0% {
+    opacity: 0;
+    transform: translate3d(12px, 0, 0) scale(.996);
+  }
+  58% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabScene {
+    animation: none !important;
+  }
+}
