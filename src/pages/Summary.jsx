@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { fetchTransactions, fetchSummary, getCachedTransactions, getCachedSummary, updateSummaryCells } from '../services/sheetsApi'
 import { signOut } from '../services/googleAuth'
 import { computeFinancialState, formatHebrewDate, getMonthKey, getMonthStart } from '../utils/billing'
@@ -101,7 +102,8 @@ export default function Summary() {
   const previousCharges = Number(summary.previousCharges) || 0
 
   return (
-    <div style={styles.container}>
+    <>
+      <div style={{ ...styles.container, paddingBottom: settingsOpen ? '170px' : styles.container.paddingBottom }}>
       <section style={styles.balanceCard} aria-label="מצב עו״ש">
         <div style={styles.balanceLabel}>יתרת עו״ש</div>
         <div style={styles.balanceValue}>{checking.toFixed(0)} ₪</div>
@@ -201,19 +203,25 @@ export default function Summary() {
               onChange={value => updateForm('wallet', value)}
             />
 
-            <button
-              style={styles.saveAllBtn}
-              onClick={saveMonthSettings}
-              disabled={savingSettings || !Object.values(settingsForm).some(value => value !== '')}
-            >
-              {savingSettings ? 'שומר…' : 'שמור שינויים'}
-            </button>
-
             <button style={styles.logoutBtn} onClick={signOut}>התנתק</button>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      {settingsOpen && createPortal(
+        <div style={styles.settingsSaveBar}>
+          <button
+            style={styles.saveAllBtn}
+            onClick={saveMonthSettings}
+            disabled={savingSettings || !Object.values(settingsForm).some(value => value !== '')}
+          >
+            {savingSettings ? 'שומר…' : 'שמור שינויים'}
+          </button>
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -283,7 +291,8 @@ function ManualRow({ label, value, onChange }) {
 
 const styles = {
   container: {
-    padding: '14px 16px 92px',
+    padding: '14px 16px 0',
+    paddingBottom: '92px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
@@ -537,19 +546,29 @@ const styles = {
     whiteSpace: 'nowrap',
     fontSize: '14px',
   },
+  settingsSaveBar: {
+    position: 'fixed',
+    zIndex: 40,
+    left: '50%',
+    bottom: 'calc(94px + env(safe-area-inset-bottom, 0px))',
+    transform: 'translateX(-50%)',
+    width: 'min(448px, calc(100% - 32px))',
+    padding: '6px 0',
+    background: 'var(--bg)',
+  },
   saveAllBtn: {
     width: '100%',
-    minHeight: '48px',
-    marginTop: '12px',
-    padding: '12px 16px',
+    minHeight: '52px',
+    margin: 0,
+    padding: '14px 18px',
     background: 'var(--button)',
     color: 'var(--button-text)',
     border: 'none',
-    borderRadius: '14px',
+    borderRadius: '16px',
     cursor: 'pointer',
     fontWeight: 800,
-    fontSize: '14px',
-    boxShadow: '0 8px 18px rgba(16, 24, 40, 0.10)',
+    fontSize: '16px',
+    boxShadow: '0 10px 24px rgba(16, 24, 40, 0.12)',
   },
   logoutBtn: {
     width: '100%',
