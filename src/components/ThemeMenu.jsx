@@ -12,16 +12,22 @@ export default function ThemeMenu({ value, onChange }) {
 
   useEffect(() => {
     if (!open) {
-      setShowThemeOptions(false)
-      return undefined
+      const timer = window.setTimeout(() => setShowThemeOptions(false), 340)
+      return () => window.clearTimeout(timer)
     }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
 
     const onKeyDown = event => {
       if (event.key === 'Escape') setOpen(false)
     }
 
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
   }, [open])
 
   const currentLabel = OPTIONS.find(option => option.value === value)?.label || 'מערכת'
@@ -42,78 +48,93 @@ export default function ThemeMenu({ value, onChange }) {
         </span>
       </button>
 
-      {open && (
-        <div style={styles.overlay} onClick={() => setOpen(false)}>
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label="תפריט הגדרות"
-            style={styles.drawer}
-            onClick={event => event.stopPropagation()}
-          >
-            <div style={styles.drawerGlow} />
-            <div style={styles.header}>
-              <div style={styles.headerText}>
-                <div style={styles.title}>הגדרות</div>
-                <div style={styles.subtitle}>התאמה אישית של המראה</div>
+      <div
+        aria-hidden={!open}
+        style={{
+          ...styles.overlay,
+          ...(open ? styles.overlayOpen : styles.overlayClosed),
+        }}
+        onClick={() => open && setOpen(false)}
+      >
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-label="תפריט הגדרות"
+          style={{
+            ...styles.drawer,
+            ...(open ? styles.drawerOpen : styles.drawerClosed),
+          }}
+          onClick={event => event.stopPropagation()}
+        >
+          <div style={styles.drawerGlow} />
+
+          <div style={styles.header}>
+            <div style={styles.headerText}>
+              <div style={styles.title}>הגדרות</div>
+              <div style={styles.subtitle}>התאמה אישית של המראה</div>
+            </div>
+            <button
+              type="button"
+              aria-label="סגור תפריט"
+              style={styles.closeButton}
+              onClick={() => setOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+
+          <div style={styles.section}>
+            <button
+              type="button"
+              style={styles.sectionButton}
+              onClick={() => setShowThemeOptions(current => !current)}
+              aria-expanded={showThemeOptions}
+            >
+              <span style={styles.sectionMain}>
+                <strong style={styles.sectionTitle}>הגדרת תצוגה</strong>
+                <span style={styles.sectionValue}>{currentLabel}</span>
+              </span>
+              <span
+                aria-hidden="true"
+                style={{
+                  ...styles.chevron,
+                  transform: showThemeOptions ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              >
+                ⌄
+              </span>
+            </button>
+
+            <div
+              style={{
+                ...styles.optionsWrap,
+                ...(showThemeOptions ? styles.optionsWrapOpen : styles.optionsWrapClosed),
+              }}
+            >
+              <div style={styles.optionsInner}>
+                {OPTIONS.map(option => {
+                  const selected = option.value === value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      style={selected ? styles.optionSelected : styles.option}
+                      onClick={() => onChange(option.value)}
+                      tabIndex={showThemeOptions && open ? 0 : -1}
+                    >
+                      <span style={styles.optionText}>
+                        <strong style={styles.optionLabel}>{option.label}</strong>
+                        <span style={styles.optionDescription}>{option.description}</span>
+                      </span>
+                      <span aria-hidden="true" style={styles.check}>{selected ? '✓' : ''}</span>
+                    </button>
+                  )
+                })}
               </div>
-              <button
-                type="button"
-                aria-label="סגור תפריט"
-                style={styles.closeButton}
-                onClick={() => setOpen(false)}
-              >
-                ×
-              </button>
             </div>
-
-            <div style={styles.section}>
-              <button
-                type="button"
-                style={styles.sectionButton}
-                onClick={() => setShowThemeOptions(current => !current)}
-                aria-expanded={showThemeOptions}
-              >
-                <span style={styles.sectionMain}>
-                  <strong style={styles.sectionTitle}>הגדרת תצוגה</strong>
-                  <span style={styles.sectionValue}>{currentLabel}</span>
-                </span>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    ...styles.chevron,
-                    transform: showThemeOptions ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}
-                >
-                  ⌄
-                </span>
-              </button>
-
-              {showThemeOptions && (
-                <div style={styles.optionsWrap}>
-                  {OPTIONS.map(option => {
-                    const selected = option.value === value
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        style={selected ? styles.optionSelected : styles.option}
-                        onClick={() => onChange(option.value)}
-                      >
-                        <span style={styles.optionText}>
-                          <strong style={styles.optionLabel}>{option.label}</strong>
-                          <span style={styles.optionDescription}>{option.description}</span>
-                        </span>
-                        <span aria-hidden="true" style={styles.check}>{selected ? '✓' : ''}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </aside>
-        </div>
-      )}
+          </div>
+        </aside>
+      </div>
     </>
   )
 }
@@ -125,6 +146,8 @@ const glassBase = {
   backdropFilter: 'var(--glass-blur)',
   WebkitBackdropFilter: 'var(--glass-blur)',
 }
+
+const iosEase = 'cubic-bezier(0.22, 1, 0.36, 1)'
 
 const styles = {
   menuButton: {
@@ -160,8 +183,20 @@ const styles = {
     zIndex: 2000,
     inset: 0,
     background: 'rgba(3, 10, 20, 0.28)',
+    transition: `opacity 280ms ${iosEase}, backdrop-filter 340ms ${iosEase}, -webkit-backdrop-filter 340ms ${iosEase}`,
+    willChange: 'opacity, backdrop-filter',
+  },
+  overlayOpen: {
+    opacity: 1,
+    pointerEvents: 'auto',
     backdropFilter: 'blur(8px)',
     WebkitBackdropFilter: 'blur(8px)',
+  },
+  overlayClosed: {
+    opacity: 0,
+    pointerEvents: 'none',
+    backdropFilter: 'blur(0px)',
+    WebkitBackdropFilter: 'blur(0px)',
   },
   drawer: {
     position: 'absolute',
@@ -179,6 +214,17 @@ const styles = {
     direction: 'rtl',
     textAlign: 'right',
     overflow: 'hidden',
+    transformOrigin: 'right center',
+    transition: `transform 420ms ${iosEase}, opacity 260ms ${iosEase}`,
+    willChange: 'transform, opacity',
+  },
+  drawerOpen: {
+    transform: 'translate3d(0, 0, 0) scale(1)',
+    opacity: 1,
+  },
+  drawerClosed: {
+    transform: 'translate3d(104%, 0, 0) scale(0.985)',
+    opacity: 0.72,
   },
   drawerGlow: {
     position: 'absolute',
@@ -260,10 +306,31 @@ const styles = {
   chevron: {
     fontSize: '17px',
     color: 'var(--text-muted)',
-    transition: 'transform 0.18s ease',
+    transition: `transform 320ms ${iosEase}`,
     flexShrink: 0,
   },
   optionsWrap: {
+    display: 'grid',
+    gridTemplateRows: '0fr',
+    opacity: 0,
+    transform: 'translateY(-6px)',
+    overflow: 'hidden',
+    transition: `grid-template-rows 340ms ${iosEase}, opacity 220ms ${iosEase}, transform 340ms ${iosEase}`,
+  },
+  optionsWrapOpen: {
+    gridTemplateRows: '1fr',
+    opacity: 1,
+    transform: 'translateY(0)',
+    pointerEvents: 'auto',
+  },
+  optionsWrapClosed: {
+    gridTemplateRows: '0fr',
+    opacity: 0,
+    transform: 'translateY(-6px)',
+    pointerEvents: 'none',
+  },
+  optionsInner: {
+    minHeight: 0,
     display: 'grid',
     gap: '8px',
     paddingTop: '2px',
