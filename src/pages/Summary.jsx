@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchTransactions, fetchSummary, getCachedTransactions, getCachedSummary, updateSummaryCells } from '../services/sheetsApi'
 import { signOut } from '../services/googleAuth'
-import { computeFinancialState, formatHebrewDate, formatHebrewMonth, getMonthKey, getMonthStart } from '../utils/billing'
+import { computeFinancialState, formatHebrewDate, getMonthKey, getMonthStart } from '../utils/billing'
 import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Summary() {
@@ -105,7 +105,6 @@ export default function Summary() {
       <div style={styles.header}>
         <div>
           <h2 style={styles.title}>סיכום</h2>
-          <div style={styles.month}>{formatHebrewMonth(selectedStart)}</div>
         </div>
       </div>
 
@@ -290,13 +289,13 @@ function ManualRow({ label, value, onChange }) {
 
 const styles = {
   container: {
-    padding: '18px 16px 92px',
+    padding: '14px 16px 92px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
   header: {
-    marginBottom: '14px',
+    marginBottom: '10px',
     paddingLeft: '54px',
     paddingRight: '54px',
     boxSizing: 'border-box',
@@ -305,19 +304,15 @@ const styles = {
   },
   title: {
     margin: 0,
-    fontSize: '26px',
+    fontSize: '24px',
   },
   month: {
-    marginTop: '2px',
-    color: 'var(--text-muted)',
-    fontSize: '13px',
-  },
-
+    
   balanceCard: {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: '16px',
-    padding: '18px 18px 14px',
+    padding: '16px 16px 12px',
     boxShadow: 'var(--shadow)',
   },
   balanceLabel: {
@@ -333,8 +328,8 @@ const styles = {
     letterSpacing: '-0.02em',
   },
   estimatedRow: {
-    marginTop: '14px',
-    paddingTop: '12px',
+    marginTop: '12px',
+    paddingTop: '10px',
     borderTop: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'baseline',
@@ -346,7 +341,7 @@ const styles = {
     fontSize: '12px',
   },
   estimatedValue: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: 800,
     whiteSpace: 'nowrap',
   },
@@ -354,15 +349,15 @@ const styles = {
   quickStats: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '10px',
-    marginTop: '10px',
+    gap: '8px',
+    marginTop: '8px',
   },
   quickStat: {
     minWidth: 0,
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: '14px',
-    padding: '12px 13px',
+    padding: '11px 12px',
   },
   quickStatLabel: {
     color: 'var(--text-muted)',
@@ -385,10 +380,10 @@ const styles = {
   },
 
   budgetsSection: {
-    marginTop: '20px',
+    marginTop: '16px',
   },
   sectionHeader: {
-    marginBottom: '8px',
+    marginBottom: '6px',
   },
   sectionHeading: {
     margin: 0,
@@ -398,10 +393,10 @@ const styles = {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: '14px',
-    padding: '2px 14px',
+    padding: '0 12px',
   },
   budgetRow: {
-    padding: '12px 0',
+    padding: '10px 0',
   },
   budgetTopLine: {
     display: 'flex',
@@ -530,7 +525,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '12px',
-    marginBottom: '8px',
+    marginBottom: '6px',
     padding: '11px',
     border: '1px solid var(--border)',
     borderRadius: '10px',

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { deleteTransaction, fetchTransactions, getCachedTransactions } from '../services/sheetsApi'
-import { formatHebrewDate, formatHebrewMonth, getCreditChargeDate, getMonthStart, parseDate } from '../utils/billing'
+import { formatHebrewDate, getCreditChargeDate, parseDate } from '../utils/billing'
 import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Transactions() {
@@ -69,7 +69,7 @@ export default function Transactions() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>תנועות · {formatHebrewMonth(getMonthStart(selectedMonthKey))}</h2>
+      <h2 style={styles.title}>תנועות</h2>
       <button onClick={() => load()} style={styles.refresh}>רענן</button>
       {transactions.length === 0 && (
         <p style={styles.empty}>אין תנועות עדיין</p>
@@ -121,17 +121,17 @@ export default function Transactions() {
 }
 
 const styles = {
-  container: { padding: '16px', paddingBottom: '96px', direction: 'rtl', maxWidth: '480px', margin: '0 auto' },
+  container: { padding: '14px 16px 96px', direction: 'rtl', maxWidth: '480px', margin: '0 auto' },
   title: {
-    marginBottom: '10px',
+    marginBottom: '8px',
     padding: '0 54px',
     boxSizing: 'border-box',
     width: '100%',
     textAlign: 'center',
-    fontSize: '24px',
+    fontSize: '22px',
   },
   refresh: {
-    marginBottom: '16px',
+    marginBottom: '12px',
     minHeight: '42px',
     padding: '10px 16px',
     cursor: 'pointer',
@@ -146,13 +146,13 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '14px 14px',
+    padding: '13px 14px',
     border: '1px solid var(--border)',
     borderRadius: '18px',
     gap: '10px',
     background: 'var(--surface)',
     boxShadow: 'var(--shadow)',
-    marginBottom: '10px',
+    marginBottom: '8px',
   },
   details: { minWidth: 0, flex: 1 },
   actions: { display: 'flex', alignItems: 'center', gap: '10px' },
@@ -179,7 +179,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '12px',
-    marginTop: '18px',
+    marginTop: '14px',
     padding: '16px 18px',
     background: 'var(--surface)',
     border: '1px solid var(--border)',

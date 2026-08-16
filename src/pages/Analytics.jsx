@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchTransactions, getCachedTransactions } from '../services/sheetsApi'
-import { formatHebrewMonth, getMonthStart } from '../utils/billing'
+
 import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Analytics() {
@@ -41,8 +41,7 @@ export default function Analytics() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2 style={styles.title}>ניתוח הוצאות</h2>
-        <div style={styles.month}>{formatHebrewMonth(getMonthStart(selectedMonthKey))}</div>
+        <h2 style={styles.title}>ניתוח</h2>
       </div>
 
       {loading ? (
@@ -287,13 +286,13 @@ function PaymentDonut({ data }) {
 
 const styles = {
   container: {
-    padding: '18px 16px 100px',
+    padding: '14px 16px 100px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
   header: {
-    marginBottom: '14px',
+    marginBottom: '10px',
     paddingLeft: '54px',
     paddingRight: '54px',
     boxSizing: 'border-box',
@@ -302,18 +301,13 @@ const styles = {
   },
   title: {
     margin: 0,
-    fontSize: '24px',
-  },
-  month: {
-    marginTop: '2px',
-    color: 'var(--text-muted)',
-    fontSize: '13px',
+    fontSize: '22px',
   },
   totalCard: {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: '16px',
-    padding: '16px 18px',
+    padding: '14px 16px',
     boxShadow: 'var(--shadow)',
   },
   totalLabel: {
@@ -323,15 +317,15 @@ const styles = {
   },
   totalValue: {
     marginTop: '3px',
-    fontSize: '31px',
+    fontSize: '29px',
     lineHeight: 1.1,
     fontWeight: 820,
   },
   section: {
-    marginTop: '18px',
+    marginTop: '14px',
   },
   sectionTitle: {
-    marginBottom: '8px',
+    marginBottom: '6px',
     fontSize: '15px',
     fontWeight: 800,
   },
@@ -339,7 +333,7 @@ const styles = {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
     borderRadius: '14px',
-    padding: '14px',
+    padding: '12px',
   },
   empty: {
     padding: '20px 0',
@@ -349,7 +343,7 @@ const styles = {
   },
   categoryList: {
     display: 'grid',
-    gap: '12px',
+    gap: '10px',
   },
   categoryItem: {
     display: 'grid',
@@ -389,7 +383,7 @@ const styles = {
   paymentLayout: {
     display: 'grid',
     gridTemplateColumns: '140px 1fr',
-    gap: '14px',
+    gap: '12px',
     alignItems: 'center',
   },
   donutWrap: {

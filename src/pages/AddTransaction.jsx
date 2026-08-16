@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { appendTransaction } from '../services/sheetsApi'
 import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '../config/sheetsConfig'
-import { formatHebrewDate, formatHebrewMonth, formatIsoDate, getCreditChargeDate, getMonthStart, toIsoDate } from '../utils/billing'
+import { formatHebrewDate, formatIsoDate, getCreditChargeDate, toIsoDate } from '../utils/billing'
 import { useSelectedMonth } from '../context/MonthContext'
 
 function ChipRow({ label, options, value, onChange, allowClear = false }) {
@@ -85,7 +85,7 @@ export default function AddTransaction() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>תנועה חדשה · {formatHebrewMonth(getMonthStart(selectedMonthKey))}</h2>
+      <h2 style={styles.title}>הוספה</h2>
 
       <div style={styles.field}>
         <label style={styles.label}>תאריך</label>
@@ -169,32 +169,32 @@ export default function AddTransaction() {
 
 const styles = {
   container: {
-    padding: '10px 16px 68px',
+    padding: '8px 16px 68px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
   title: {
-    marginBottom: '10px',
+    marginBottom: '6px',
     padding: '0 54px',
     boxSizing: 'border-box',
     width: '100%',
     textAlign: 'center',
-    fontSize: '20px',
+    fontSize: '18px',
     lineHeight: 1.2,
   },
   field: {
-    marginBottom: '10px',
+    marginBottom: '6px',
   },
   choiceField: {
-    marginBottom: '8px',
+    marginBottom: '6px',
   },
   label: {
     display: 'block',
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: 600,
     color: 'var(--text-muted)',
-    marginBottom: '4px',
+    marginBottom: '3px',
   },
   input: {
     width: '100%',
@@ -252,7 +252,7 @@ const styles = {
   chipRow: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '7px',
+    gap: '6px',
     alignItems: 'center',
   },
   chip: {
@@ -290,8 +290,8 @@ const styles = {
     boxShadow: '0 6px 16px rgba(37, 99, 235, 0.18)',
   },
   billingInfo: {
-    padding: '8px 10px',
-    marginBottom: '8px',
+    padding: '7px 10px',
+    marginBottom: '6px',
     borderRadius: '12px',
     background: 'var(--surface-soft)',
     fontSize: '14px',
@@ -308,7 +308,7 @@ const styles = {
     fontSize: '16px',
     fontWeight: 800,
     cursor: 'pointer',
-    marginTop: '18px',
+    marginTop: '14px',
     boxShadow: '0 10px 24px rgba(16, 24, 40, 0.12)',
   },
 }
