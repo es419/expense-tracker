@@ -12,7 +12,7 @@ export default function ThemeMenu({ value, onChange }) {
 
   useEffect(() => {
     if (!open) {
-      const timer = window.setTimeout(() => setShowThemeOptions(false), 340)
+      const timer = window.setTimeout(() => setShowThemeOptions(false), 300)
       return () => window.clearTimeout(timer)
     }
 
@@ -66,8 +66,6 @@ export default function ThemeMenu({ value, onChange }) {
           }}
           onClick={event => event.stopPropagation()}
         >
-          <div style={styles.drawerGlow} />
-
           <div style={styles.header}>
             <div style={styles.headerText}>
               <div style={styles.title}>הגדרות</div>
@@ -139,34 +137,27 @@ export default function ThemeMenu({ value, onChange }) {
   )
 }
 
-const glassBase = {
-  border: '1px solid var(--border)',
-  background: 'var(--surface)',
-  boxShadow: 'var(--shadow-soft)',
-  backdropFilter: 'var(--glass-blur)',
-  WebkitBackdropFilter: 'var(--glass-blur)',
-}
-
-const iosEase = 'cubic-bezier(0.16, 1, 0.3, 1)'
+const iosEase = 'cubic-bezier(.2, .82, .22, 1)'
 
 const styles = {
   menuButton: {
     position: 'fixed',
     zIndex: 1000,
-    top: 'max(8px, env(safe-area-inset-top))',
-    right: 'max(8px, calc((100vw - 480px) / 2 - 54px))',
-    width: '46px',
-    height: '46px',
-    borderRadius: '16px',
-    ...glassBase,
+    top: 'max(12px, env(safe-area-inset-top))',
+    right: 'max(12px, calc((100vw - 480px) / 2 + 12px))',
+    width: '42px',
+    height: '42px',
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
     background: 'var(--theme-toggle-bg)',
     color: 'var(--text)',
+    boxShadow: 'var(--shadow)',
     display: 'grid',
     placeItems: 'center',
     cursor: 'pointer',
   },
   menuIcon: {
-    width: '19px',
+    width: '18px',
     height: '14px',
     display: 'flex',
     flexDirection: 'column',
@@ -182,78 +173,57 @@ const styles = {
     position: 'fixed',
     zIndex: 2000,
     inset: 0,
-    background: 'rgba(3, 10, 20, 0.28)',
-    transition: `opacity 280ms ${iosEase}, backdrop-filter 340ms ${iosEase}, -webkit-backdrop-filter 340ms ${iosEase}`,
-    willChange: 'opacity, backdrop-filter',
+    background: 'rgba(0, 0, 0, 0.38)',
+    transition: `opacity 220ms ${iosEase}`,
   },
   overlayOpen: {
     opacity: 1,
     pointerEvents: 'auto',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
   },
   overlayClosed: {
     opacity: 0,
     pointerEvents: 'none',
-    backdropFilter: 'blur(0px)',
-    WebkitBackdropFilter: 'blur(0px)',
   },
   drawer: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
-    width: 'min(84vw, 330px)',
-    padding: 'max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom))',
-    background: 'color-mix(in srgb, var(--surface) 84%, transparent)',
+    width: 'min(82vw, 320px)',
+    padding: 'max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom))',
+    background: 'var(--surface)',
     color: 'var(--text)',
     borderLeft: '1px solid var(--border)',
-    boxShadow: '-28px 0 70px rgba(0, 0, 0, 0.24), inset 1px 0 0 var(--glass-highlight)',
-    backdropFilter: 'blur(40px) saturate(205%)',
-    WebkitBackdropFilter: 'blur(40px) saturate(205%)',
+    boxShadow: '-18px 0 45px rgba(0, 0, 0, 0.24)',
     direction: 'rtl',
     textAlign: 'right',
-    overflow: 'hidden',
-    transformOrigin: 'right center',
-    transition: `transform 480ms ${iosEase}, opacity 280ms ${iosEase}`,
+    transition: `transform 350ms ${iosEase}, opacity 220ms ${iosEase}`,
     willChange: 'transform, opacity',
   },
   drawerOpen: {
-    transform: 'translate3d(0, 0, 0) scale(1)',
+    transform: 'translate3d(0, 0, 0)',
     opacity: 1,
   },
   drawerClosed: {
-    transform: 'translate3d(102%, 0, 0) scale(0.992)',
-    opacity: 0.72,
-  },
-  drawerGlow: {
-    position: 'absolute',
-    width: '220px',
-    height: '220px',
-    top: '-90px',
-    right: '-80px',
-    borderRadius: '50%',
-    background: 'color-mix(in srgb, var(--primary) 26%, transparent)',
-    filter: 'blur(28px)',
-    pointerEvents: 'none',
+    transform: 'translate3d(102%, 0, 0)',
+    opacity: 0.96,
   },
   header: {
-    position: 'relative',
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: '12px',
-    marginBottom: '24px',
+    marginBottom: '22px',
   },
   headerText: {
     display: 'grid',
     gap: '4px',
   },
   closeButton: {
-    width: '38px',
-    height: '38px',
-    borderRadius: '14px',
-    ...glassBase,
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    border: '1px solid var(--border)',
     background: 'var(--surface-soft)',
     color: 'var(--text)',
     fontSize: '24px',
@@ -262,29 +232,27 @@ const styles = {
     flexShrink: 0,
   },
   title: {
-    fontSize: '22px',
-    fontWeight: 850,
-    letterSpacing: '-0.02em',
+    fontSize: '20px',
+    fontWeight: 800,
   },
   subtitle: {
     color: 'var(--text-muted)',
     fontSize: '13px',
   },
   section: {
-    position: 'relative',
     display: 'grid',
     gap: '10px',
   },
   sectionButton: {
     width: '100%',
-    minHeight: '66px',
+    minHeight: '62px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '12px',
-    padding: '13px 15px',
-    borderRadius: '18px',
-    ...glassBase,
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
     background: 'var(--surface-soft)',
     color: 'var(--text)',
     textAlign: 'right',
@@ -297,36 +265,33 @@ const styles = {
   },
   sectionTitle: {
     fontSize: '15px',
-    fontWeight: 760,
+    fontWeight: 700,
   },
   sectionValue: {
     fontSize: '13px',
     color: 'var(--text-muted)',
   },
   chevron: {
-    fontSize: '17px',
+    fontSize: '16px',
     color: 'var(--text-muted)',
-    transition: `transform 320ms ${iosEase}`,
+    transition: `transform 220ms ${iosEase}`,
     flexShrink: 0,
   },
   optionsWrap: {
     display: 'grid',
     gridTemplateRows: '0fr',
     opacity: 0,
-    transform: 'translateY(-6px)',
     overflow: 'hidden',
-    transition: `grid-template-rows 340ms ${iosEase}, opacity 220ms ${iosEase}, transform 340ms ${iosEase}`,
+    transition: `grid-template-rows 280ms ${iosEase}, opacity 180ms ${iosEase}`,
   },
   optionsWrapOpen: {
     gridTemplateRows: '1fr',
     opacity: 1,
-    transform: 'translateY(0)',
     pointerEvents: 'auto',
   },
   optionsWrapClosed: {
     gridTemplateRows: '0fr',
     opacity: 0,
-    transform: 'translateY(-6px)',
     pointerEvents: 'none',
   },
   optionsInner: {
@@ -343,9 +308,9 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     padding: '10px 12px',
-    borderRadius: '17px',
-    ...glassBase,
-    background: 'var(--surface-soft)',
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
     color: 'var(--text)',
     textAlign: 'right',
     cursor: 'pointer',
@@ -358,15 +323,12 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     padding: '10px 12px',
-    borderRadius: '17px',
-    border: '1px solid color-mix(in srgb, var(--primary) 62%, var(--border))',
-    background: 'color-mix(in srgb, var(--primary) 18%, var(--surface))',
+    borderRadius: '14px',
+    border: '1px solid var(--primary)',
+    background: 'var(--nav-active-bg)',
     color: 'var(--text)',
     textAlign: 'right',
     cursor: 'pointer',
-    boxShadow: '0 12px 30px color-mix(in srgb, var(--primary) 14%, transparent), inset 0 1px 0 var(--glass-highlight)',
-    backdropFilter: 'var(--glass-blur)',
-    WebkitBackdropFilter: 'var(--glass-blur)',
   },
   optionText: {
     display: 'grid',
@@ -383,7 +345,7 @@ const styles = {
   check: {
     color: 'var(--primary)',
     fontSize: '18px',
-    fontWeight: 850,
+    fontWeight: 800,
     textAlign: 'center',
   },
 }

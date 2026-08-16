@@ -15,66 +15,13 @@ body {
 .sign-in-shell {
   min-height: 100vh;
   min-height: 100svh;
-  background: transparent;
+  background: var(--bg);
   color: var(--text);
-  transition: color 180ms ease;
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 
-.page-stage {
-  min-height: 100svh;
-  animation: native-page-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  transform-origin: 50% 24%;
-  will-change: transform, opacity;
-}
-
-@keyframes native-page-enter {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 5px, 0) scale(0.996);
-  }
-  55% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-::view-transition-old(root) {
-  animation: native-view-old 170ms cubic-bezier(0.4, 0, 1, 1) both;
-}
-
-::view-transition-new(root) {
-  animation: native-view-new 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes native-view-old {
-  to {
-    opacity: 0.55;
-    transform: scale(0.996);
-  }
-}
-
-@keyframes native-view-new {
-  from {
-    opacity: 0;
-    transform: translateY(4px) scale(0.997);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-stage,
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none !important;
-  }
-}
-
-
-/* Same motion model used by the attendance app:
-   one short incoming scene animation, never layered with browser transitions. */
+/* Smooth screen transitions retained from the latest version. */
 .tabScene {
   transform-origin: 50% 42%;
   will-change: transform, opacity;

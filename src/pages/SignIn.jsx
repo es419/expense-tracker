@@ -19,26 +19,14 @@ export default function SignIn() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '100vh',
-      gap: '18px',
+      height: '100vh',
+      gap: '24px',
       padding: '24px',
-      background: 'transparent'
+      background: 'var(--bg)'
     }}>
-      <div style={{
-        width: '82px',
-        height: '82px',
-        display: 'grid',
-        placeItems: 'center',
-        fontSize: '42px',
-        borderRadius: '26px',
-        border: '1px solid var(--border)',
-        background: 'var(--surface)',
-        boxShadow: 'var(--shadow)',
-        backdropFilter: 'var(--glass-blur)',
-        WebkitBackdropFilter: 'var(--glass-blur)',
-      }}>💰</div>
-      <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 860, letterSpacing: '-0.02em' }}>ניהול הוצאות</h1>
-      <p style={{ margin: 0, color: 'var(--text-muted)', textAlign: 'center', maxWidth: '340px', lineHeight: 1.55 }}>
+      <div style={{ fontSize: '48px' }}>💰</div>
+      <h1 style={{ margin: 0, fontSize: '24px' }}>ניהול הוצאות</h1>
+      <p style={{ margin: 0, color: 'var(--text-muted)', textAlign: 'center' }}>
         התחבר פעם אחת עם Google כדי לסנכרן עם הגיליון שלך
       </p>
       {errorMessage && (
@@ -54,17 +42,13 @@ export default function SignIn() {
       <button
         onClick={signIn}
         style={{
-          minWidth: '220px',
-          minHeight: '52px',
-          padding: '13px 26px',
+          padding: '12px 32px',
           fontSize: '16px',
-          fontWeight: 800,
-          background: 'linear-gradient(180deg, color-mix(in srgb, var(--primary) 90%, white 10%), var(--primary))',
+          background: 'var(--primary)',
           color: 'var(--primary-text)',
-          border: '1px solid color-mix(in srgb, var(--primary) 70%, white 30%)',
-          borderRadius: '18px',
+          border: 'none',
+          borderRadius: '8px',
           cursor: 'pointer',
-          boxShadow: '0 14px 34px color-mix(in srgb, var(--primary) 26%, transparent), inset 0 1px 0 rgba(255,255,255,0.38)',
         }}
       >
         התחבר עם Google

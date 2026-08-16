@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 function ListIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <path d="M8 6h11" />
       <path d="M8 12h11" />
       <path d="M8 18h11" />
@@ -15,7 +15,7 @@ function ListIcon() {
 
 function PlusIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
       <path d="M12 5v14" />
       <path d="M5 12h14" />
     </svg>
@@ -24,7 +24,7 @@ function PlusIcon() {
 
 function ChartIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 19V5" />
       <path d="M4 19h16" />
       <path d="M8 15l3-4 3 2 4-6" />
@@ -45,19 +45,11 @@ export default function BottomNav() {
   const activeIndex = Math.max(0, tabs.findIndex(tab => tab.path === location.pathname))
 
   function navigateTo(path) {
-    if (path === location.pathname) return
-
-    if (document.startViewTransition) {
-      document.startViewTransition(() => navigate(path))
-      return
-    }
-
-    navigate(path)
+    if (path !== location.pathname) navigate(path)
   }
 
   return (
     <nav style={styles.nav} aria-label="תפריט ניווט תחתון">
-      <div style={styles.topReflection} />
       <div
         aria-hidden="true"
         style={{
@@ -82,7 +74,7 @@ export default function BottomNav() {
             <span
               style={{
                 ...styles.icon,
-                transform: active ? 'translateY(-1px) scale(1.085)' : 'translateY(0) scale(.96)',
+                transform: active ? 'translateY(-1px) scale(1.06)' : 'translateY(0) scale(1)',
               }}
             >
               {tab.icon}
@@ -95,7 +87,7 @@ export default function BottomNav() {
   )
 }
 
-const iosEase = 'cubic-bezier(.16, 1.08, .30, 1)'
+const iosEase = 'cubic-bezier(.16, 1.02, .30, 1)'
 
 const styles = {
   nav: {
@@ -104,29 +96,18 @@ const styles = {
     right: '50%',
     bottom: 'max(14px, env(safe-area-inset-bottom))',
     transform: 'translateX(50%)',
-    width: 'min(410px, calc(100% - 28px))',
-    minHeight: '70px',
+    width: 'min(430px, calc(100% - 24px))',
+    minHeight: '68px',
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     alignItems: 'stretch',
+    gap: 0,
     padding: '8px',
     border: '1px solid var(--border)',
-    borderRadius: '26px',
-    background: 'linear-gradient(180deg, color-mix(in srgb, var(--nav-bg) 94%, white 3%), color-mix(in srgb, var(--nav-bg) 88%, transparent))',
+    borderRadius: '22px',
+    background: 'var(--nav-bg)',
     boxShadow: 'var(--nav-shadow)',
-    backdropFilter: 'blur(38px) saturate(205%)',
-    WebkitBackdropFilter: 'blur(38px) saturate(205%)',
     overflow: 'hidden',
-  },
-  topReflection: {
-    position: 'absolute',
-    zIndex: 0,
-    top: 0,
-    left: '10%',
-    right: '10%',
-    height: '1px',
-    background: 'linear-gradient(90deg, transparent, var(--glass-highlight), transparent)',
-    pointerEvents: 'none',
   },
   activePill: {
     position: 'absolute',
@@ -135,13 +116,9 @@ const styles = {
     bottom: '8px',
     left: '8px',
     width: 'calc((100% - 16px) / 3)',
-    borderRadius: '19px',
-    border: '1px solid color-mix(in srgb, var(--primary) 26%, var(--border))',
-    background: 'linear-gradient(180deg, color-mix(in srgb, var(--nav-active-bg) 92%, white 5%), color-mix(in srgb, var(--nav-active-bg) 82%, transparent))',
-    boxShadow: '0 10px 28px color-mix(in srgb, var(--primary) 17%, transparent), inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 color-mix(in srgb, var(--primary) 8%, transparent)',
-    backdropFilter: 'blur(28px) saturate(190%)',
-    WebkitBackdropFilter: 'blur(28px) saturate(190%)',
-    transition: `transform 440ms ${iosEase}, box-shadow 260ms ease`,
+    borderRadius: '16px',
+    background: 'var(--nav-active-bg)',
+    transition: `transform 380ms ${iosEase}`,
     willChange: 'transform',
     pointerEvents: 'none',
   },
@@ -149,9 +126,9 @@ const styles = {
     position: 'relative',
     zIndex: 1,
     minWidth: 0,
-    minHeight: '54px',
+    minHeight: '52px',
     border: 0,
-    borderRadius: '19px',
+    borderRadius: '16px',
     background: 'transparent',
     color: 'var(--text-muted)',
     padding: '8px 6px 7px',
@@ -160,8 +137,9 @@ const styles = {
     alignContent: 'center',
     gap: '4px',
     cursor: 'pointer',
-    fontWeight: 740,
-    transition: 'color 180ms ease, transform 150ms cubic-bezier(.2,.8,.2,1), opacity 150ms ease',
+    fontWeight: 700,
+    fontSize: '12px',
+    transition: 'color 170ms ease, transform 150ms cubic-bezier(.2,.8,.2,1)',
   },
   tabActive: {
     color: 'var(--nav-active-text)',
@@ -169,13 +147,11 @@ const styles = {
   icon: {
     display: 'grid',
     placeItems: 'center',
-    height: '22px',
-    transition: 'transform 280ms cubic-bezier(.2,.8,.2,1)',
+    minHeight: '20px',
+    transition: 'transform 260ms cubic-bezier(.2,.8,.2,1)',
     willChange: 'transform',
   },
   label: {
-    fontSize: '11px',
-    lineHeight: 1.05,
-    fontWeight: 780,
+    lineHeight: 1.1,
   },
 }
