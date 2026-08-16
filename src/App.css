@@ -15,7 +15,7 @@ body {
 .sign-in-shell {
   min-height: 100vh;
   min-height: 100svh;
-  background: var(--bg);
+  background: transparent;
   color: var(--text);
-  transition: background-color 180ms ease, color 180ms ease;
+  transition: color 180ms ease;
 }

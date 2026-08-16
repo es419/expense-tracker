@@ -51,6 +51,7 @@ export default function ThemeMenu({ value, onChange }) {
             style={styles.drawer}
             onClick={event => event.stopPropagation()}
           >
+            <div style={styles.drawerGlow} />
             <div style={styles.header}>
               <div style={styles.headerText}>
                 <div style={styles.title}>הגדרות</div>
@@ -77,7 +78,15 @@ export default function ThemeMenu({ value, onChange }) {
                   <strong style={styles.sectionTitle}>הגדרת תצוגה</strong>
                   <span style={styles.sectionValue}>{currentLabel}</span>
                 </span>
-                <span aria-hidden="true" style={{ ...styles.chevron, transform: showThemeOptions ? 'rotate(180deg)' : 'rotate(0deg)' }}>⌄</span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    ...styles.chevron,
+                    transform: showThemeOptions ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  ⌄
+                </span>
               </button>
 
               {showThemeOptions && (
@@ -109,27 +118,32 @@ export default function ThemeMenu({ value, onChange }) {
   )
 }
 
+const glassBase = {
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  boxShadow: 'var(--shadow-soft)',
+  backdropFilter: 'var(--glass-blur)',
+  WebkitBackdropFilter: 'var(--glass-blur)',
+}
+
 const styles = {
   menuButton: {
     position: 'fixed',
     zIndex: 1000,
-    top: 'max(12px, env(safe-area-inset-top))',
-    right: 'max(12px, calc((100vw - 480px) / 2 + 12px))',
-    width: '42px',
-    height: '42px',
-    borderRadius: '14px',
-    border: '1px solid var(--border)',
+    top: 'max(8px, env(safe-area-inset-top))',
+    right: 'max(8px, calc((100vw - 480px) / 2 - 54px))',
+    width: '46px',
+    height: '46px',
+    borderRadius: '16px',
+    ...glassBase,
     background: 'var(--theme-toggle-bg)',
     color: 'var(--text)',
-    boxShadow: 'var(--shadow)',
     display: 'grid',
     placeItems: 'center',
     cursor: 'pointer',
-    backdropFilter: 'blur(14px)',
-    WebkitBackdropFilter: 'blur(14px)',
   },
   menuIcon: {
-    width: '18px',
+    width: '19px',
     height: '14px',
     display: 'flex',
     flexDirection: 'column',
@@ -145,40 +159,55 @@ const styles = {
     position: 'fixed',
     zIndex: 2000,
     inset: 0,
-    background: 'rgba(0, 0, 0, 0.38)',
-    backdropFilter: 'blur(2px)',
-    WebkitBackdropFilter: 'blur(2px)',
+    background: 'rgba(3, 10, 20, 0.28)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
   },
   drawer: {
     position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
-    width: 'min(82vw, 320px)',
-    padding: 'max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom))',
-    background: 'var(--surface)',
+    width: 'min(84vw, 330px)',
+    padding: 'max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom))',
+    background: 'color-mix(in srgb, var(--surface) 84%, transparent)',
     color: 'var(--text)',
     borderLeft: '1px solid var(--border)',
-    boxShadow: '-18px 0 45px rgba(0, 0, 0, 0.24)',
+    boxShadow: '-28px 0 70px rgba(0, 0, 0, 0.24), inset 1px 0 0 var(--glass-highlight)',
+    backdropFilter: 'blur(34px) saturate(185%)',
+    WebkitBackdropFilter: 'blur(34px) saturate(185%)',
     direction: 'rtl',
     textAlign: 'right',
+    overflow: 'hidden',
+  },
+  drawerGlow: {
+    position: 'absolute',
+    width: '220px',
+    height: '220px',
+    top: '-90px',
+    right: '-80px',
+    borderRadius: '50%',
+    background: 'color-mix(in srgb, var(--primary) 26%, transparent)',
+    filter: 'blur(28px)',
+    pointerEvents: 'none',
   },
   header: {
+    position: 'relative',
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: '12px',
-    marginBottom: '22px',
+    marginBottom: '24px',
   },
   headerText: {
     display: 'grid',
     gap: '4px',
   },
   closeButton: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '12px',
-    border: '1px solid var(--border)',
+    width: '38px',
+    height: '38px',
+    borderRadius: '14px',
+    ...glassBase,
     background: 'var(--surface-soft)',
     color: 'var(--text)',
     fontSize: '24px',
@@ -187,27 +216,29 @@ const styles = {
     flexShrink: 0,
   },
   title: {
-    fontSize: '20px',
-    fontWeight: 800,
+    fontSize: '22px',
+    fontWeight: 850,
+    letterSpacing: '-0.02em',
   },
   subtitle: {
     color: 'var(--text-muted)',
     fontSize: '13px',
   },
   section: {
+    position: 'relative',
     display: 'grid',
     gap: '10px',
   },
   sectionButton: {
     width: '100%',
-    minHeight: '62px',
+    minHeight: '66px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '12px',
-    padding: '12px 14px',
-    borderRadius: '14px',
-    border: '1px solid var(--border)',
+    padding: '13px 15px',
+    borderRadius: '18px',
+    ...glassBase,
     background: 'var(--surface-soft)',
     color: 'var(--text)',
     textAlign: 'right',
@@ -220,14 +251,14 @@ const styles = {
   },
   sectionTitle: {
     fontSize: '15px',
-    fontWeight: 700,
+    fontWeight: 760,
   },
   sectionValue: {
     fontSize: '13px',
     color: 'var(--text-muted)',
   },
   chevron: {
-    fontSize: '16px',
+    fontSize: '17px',
     color: 'var(--text-muted)',
     transition: 'transform 0.18s ease',
     flexShrink: 0,
@@ -245,9 +276,9 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     padding: '10px 12px',
-    borderRadius: '14px',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
+    borderRadius: '17px',
+    ...glassBase,
+    background: 'var(--surface-soft)',
     color: 'var(--text)',
     textAlign: 'right',
     cursor: 'pointer',
@@ -260,12 +291,15 @@ const styles = {
     alignItems: 'center',
     gap: '10px',
     padding: '10px 12px',
-    borderRadius: '14px',
-    border: '1px solid var(--primary)',
-    background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))',
+    borderRadius: '17px',
+    border: '1px solid color-mix(in srgb, var(--primary) 62%, var(--border))',
+    background: 'color-mix(in srgb, var(--primary) 18%, var(--surface))',
     color: 'var(--text)',
     textAlign: 'right',
     cursor: 'pointer',
+    boxShadow: '0 12px 30px color-mix(in srgb, var(--primary) 14%, transparent), inset 0 1px 0 var(--glass-highlight)',
+    backdropFilter: 'var(--glass-blur)',
+    WebkitBackdropFilter: 'var(--glass-blur)',
   },
   optionText: {
     display: 'grid',
@@ -282,7 +316,7 @@ const styles = {
   check: {
     color: 'var(--primary)',
     fontSize: '18px',
-    fontWeight: 800,
+    fontWeight: 850,
     textAlign: 'center',
   },
 }
