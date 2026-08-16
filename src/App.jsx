@@ -28,6 +28,25 @@ function getSystemTheme() {
 
 const ROUTE_ORDER = ['/transactions', '/add', '/summary', '/analytics']
 
+
+function PageHeader() {
+  const location = useLocation()
+  const titleByPath = {
+    '/transactions': 'תנועות',
+    '/add': 'הוספה',
+    '/summary': 'סיכום',
+    '/analytics': 'ניתוח',
+  }
+  const title = titleByPath[location.pathname] || 'הוספה'
+
+  return (
+    <header className="pageHeader">
+      <h1 className="pageHeaderTitle">{title}</h1>
+      <MonthFilter />
+    </header>
+  )
+}
+
 function AnimatedRoutes() {
   const location = useLocation()
   const previousIndexRef = useRef(
@@ -143,7 +162,7 @@ function App() {
       }}>
         <div className="app">
           <ThemeMenu value={themePreference} onChange={setThemePreference} />
-          <MonthFilter />
+          <PageHeader />
           <AnimatedRoutes />
           <BottomNav />
         </div>

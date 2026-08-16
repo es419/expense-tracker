@@ -87,8 +87,6 @@ export default function AddTransaction() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>הוספה</h2>
-
       <div style={styles.field}>
         <label style={styles.label}>תאריך</label>
         <button

@@ -73,12 +73,39 @@ body {
 }
 
 
+.pageHeader {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 16px 0;
+  direction: rtl;
+}
+
+.pageHeaderTitle {
+  margin: 0 0 10px;
+  padding: 0 54px;
+  text-align: center;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 .tabScene {
-  padding-top: 50px;
+  padding-top: 10px;
 }
 
 @media (max-width: 380px) {
+  .pageHeader {
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+
+  .pageHeaderTitle {
+    margin-bottom: 8px;
+    font-size: 21px;
+  }
+
   .tabScene {
-    padding-top: 48px;
+    padding-top: 8px;
   }
 }

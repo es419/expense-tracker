@@ -102,12 +102,6 @@ export default function Summary() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <div>
-          <h2 style={styles.title}>סיכום</h2>
-        </div>
-      </div>
-
       <section style={styles.balanceCard} aria-label="מצב עו״ש">
         <div style={styles.balanceLabel}>יתרת עו״ש</div>
         <div style={styles.balanceValue}>{checking.toFixed(0)} ₪</div>

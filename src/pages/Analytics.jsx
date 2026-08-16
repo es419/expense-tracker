@@ -40,10 +40,6 @@ export default function Analytics() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>ניתוח</h2>
-      </div>
-
       {loading ? (
         <div style={styles.center} />
       ) : (

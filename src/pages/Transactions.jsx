@@ -69,7 +69,6 @@ export default function Transactions() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>תנועות</h2>
       <button onClick={() => load()} style={styles.refresh}>רענן</button>
       {transactions.length === 0 && (
         <p style={styles.empty}>אין תנועות עדיין</p>

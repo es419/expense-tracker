@@ -21,3 +21,5 @@ Latest update:
 - removed extra month text in top area
 - added optional description field for transactions
 - save button on add screen is sticky near the bottom for iPhone
+
+- Page title now appears above the global month/year selector on every signed-in screen.
