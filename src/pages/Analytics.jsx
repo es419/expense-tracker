@@ -62,6 +62,13 @@ export default function Analytics() {
           </section>
 
           <section style={styles.section}>
+            <div style={styles.sectionTitle}>התפלגות קטגוריות</div>
+            <div style={styles.card}>
+              <CategoryDonut data={categoryTotals} />
+            </div>
+          </section>
+
+          <section style={styles.section}>
             <div style={styles.sectionTitle}>לפי אמצעי תשלום</div>
             <div style={styles.card}>
               <PaymentDonut data={paymentTotals} />
@@ -113,6 +120,90 @@ function CategoryBars({ data }) {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+
+const CATEGORY_COLORS = [
+  '#5b7cfa',
+  '#2ea56f',
+  '#d88b2a',
+  '#b967d9',
+  '#e35d6a',
+  '#3aa6b9',
+  '#8b7cf6',
+  '#9a7b4f',
+  '#6f8f72',
+  '#8993a4',
+]
+
+function CategoryDonut({ data }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0)
+
+  if (!total) {
+    return <div style={styles.empty}>אין הוצאות בחודש הזה</div>
+  }
+
+  const normalized = data.map((item, index) => ({
+    ...item,
+    color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+  }))
+
+  const circumference = 2 * Math.PI * 42
+  let offset = 0
+
+  return (
+    <div style={styles.paymentLayout}>
+      <div style={styles.donutWrap}>
+        <svg viewBox="0 0 100 100" width="132" height="132" aria-label="התפלגות הוצאות לפי קטגוריה">
+          <circle
+            cx="50"
+            cy="50"
+            r="42"
+            fill="none"
+            stroke="var(--surface-strong)"
+            strokeWidth="12"
+          />
+          {normalized.map(item => {
+            const length = (item.value / total) * circumference
+            const currentOffset = offset
+            offset += length
+
+            return (
+              <circle
+                key={item.label}
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke={item.color}
+                strokeWidth="12"
+                strokeDasharray={`${length} ${circumference - length}`}
+                strokeDashoffset={-currentOffset}
+                transform="rotate(-90 50 50)"
+              />
+            )
+          })}
+        </svg>
+
+        <div style={styles.donutCenter}>
+          <strong style={styles.donutTotal}>{total.toFixed(0)} ₪</strong>
+          <span style={styles.donutCaption}>קטגוריות</span>
+        </div>
+      </div>
+
+      <div style={styles.legend}>
+        {normalized.slice(0, 8).map(item => (
+          <div key={item.label} style={styles.legendRow}>
+            <span style={{ ...styles.dot, background: item.color }} />
+            <span style={styles.legendName}>{item.label}</span>
+            <strong style={styles.legendPercent}>
+              {Math.round((item.value / total) * 100)}%
+            </strong>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
