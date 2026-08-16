@@ -144,7 +144,7 @@ const styles = {
     position: 'fixed',
     zIndex: 1000,
     top: 'max(12px, env(safe-area-inset-top))',
-    right: 'max(12px, calc((100vw - 480px) / 2 + 12px))',
+    right: 'max(10px, calc((100vw - 480px) / 2 - 52px))',
     width: '42px',
     height: '42px',
     borderRadius: '14px',
