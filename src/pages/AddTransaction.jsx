@@ -185,7 +185,7 @@ export default function AddTransaction() {
 
 const styles = {
   container: {
-    padding: '10px 16px 112px',
+    padding: '10px 16px 160px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
@@ -314,10 +314,13 @@ const styles = {
     textAlign: 'center',
   },
   saveBar: {
-    position: 'sticky',
-    bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
-    paddingTop: '10px',
-    marginTop: '10px',
+    position: 'fixed',
+    zIndex: 24,
+    left: '50%',
+    bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
+    transform: 'translateX(-50%)',
+    width: 'min(448px, calc(100% - 32px))',
+    padding: '8px 0',
     background: 'var(--bg)',
   },
   saveBtn: {
@@ -331,7 +334,7 @@ const styles = {
     fontSize: '16px',
     fontWeight: 800,
     cursor: 'pointer',
-    marginTop: '14px',
+    marginTop: 0,
     boxShadow: '0 10px 24px rgba(16, 24, 40, 0.12)',
   },
 }

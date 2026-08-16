@@ -364,6 +364,18 @@ async function getCarryForward(googleRequest, spreadsheetId, metadata, currentMo
   }
 }
 
+async function ensureTransactionHeaders(googleRequest, spreadsheetId, tabs) {
+  await googleRequest(`${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        { range: a1(tabs.transactions, 'A1:H1'), values: [TRANSACTION_HEADERS] },
+      ],
+    }),
+  })
+}
+
 async function createMonthTabs(googleRequest, spreadsheetId, metadata, monthKey) {
   const tabs = tabsForMonth(monthKey)
   const missingTransactions = !findSheet(metadata, tabs.transactions)
@@ -423,6 +435,7 @@ async function ensureCurrentMonth(accessToken, cacheKey, rawMonthKey) {
     let metadata = resolved.metadata
     metadata = await migrateLegacyTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
     metadata = await createMonthTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
+    await ensureTransactionHeaders(googleRequest, resolved.spreadsheetId, tabsForMonth(monthKey))
     session.metadata = metadata
 
     const context = {
@@ -441,6 +454,7 @@ async function ensureCurrentMonth(accessToken, cacheKey, rawMonthKey) {
     const resolved = await resolveSpreadsheet(googleRequest, freshSession, monthKey)
     let metadata = await migrateLegacyTabs(googleRequest, resolved.spreadsheetId, resolved.metadata, monthKey)
     metadata = await createMonthTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
+    await ensureTransactionHeaders(googleRequest, resolved.spreadsheetId, tabsForMonth(monthKey))
     freshSession.metadata = metadata
     const context = {
       spreadsheetId: resolved.spreadsheetId,
