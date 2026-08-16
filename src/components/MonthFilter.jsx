@@ -6,104 +6,133 @@ const MONTHS = [
   'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר',
 ]
 
+function padMonth(value) {
+  return String(value).padStart(2, '0')
+}
+
 export default function MonthFilter() {
   const {
     selectedMonthKey,
     setSelectedMonthKey,
-    availableMonthKeys,
   } = useSelectedMonth()
 
   const [selectedYear, selectedMonth] = selectedMonthKey.split('-')
-  const years = useMemo(
-    () => [...new Set(availableMonthKeys.map(key => key.slice(0, 4)))].sort((a, b) => Number(b) - Number(a)),
-    [availableMonthKeys]
-  )
+  const currentYear = new Date().getFullYear()
 
-  const monthsForYear = useMemo(
-    () => availableMonthKeys
-      .filter(key => key.startsWith(`${selectedYear}-`))
-      .sort((a, b) => b.localeCompare(a)),
-    [availableMonthKeys, selectedYear]
-  )
+  const years = useMemo(() => {
+    const start = currentYear - 5
+    const end = currentYear + 5
+    const values = []
+
+    for (let year = end; year >= start; year -= 1) {
+      values.push(String(year))
+    }
+
+    // Always preserve an already-selected year, even if it falls outside
+    // the normal range.
+    if (!values.includes(selectedYear)) {
+      values.push(selectedYear)
+      values.sort((a, b) => Number(b) - Number(a))
+    }
+
+    return values
+  }, [currentYear, selectedYear])
 
   function changeYear(year) {
-    const keys = availableMonthKeys
-      .filter(key => key.startsWith(`${year}-`))
-      .sort((a, b) => b.localeCompare(a))
-    if (keys[0]) setSelectedMonthKey(keys[0])
+    setSelectedMonthKey(`${year}-${selectedMonth}`)
   }
 
   function changeMonth(month) {
-    const key = `${selectedYear}-${month}`
-    if (availableMonthKeys.includes(key)) setSelectedMonthKey(key)
+    setSelectedMonthKey(`${selectedYear}-${month}`)
   }
 
   return (
-    <div style={styles.shell} aria-label="בחירת חודש ושנה">
-      <select
-        style={styles.select}
-        value={selectedYear}
-        onChange={event => changeYear(event.target.value)}
-        aria-label="שנה"
-      >
-        {years.map(year => (
-          <option key={year} value={year}>{year}</option>
-        ))}
-      </select>
+    <section style={styles.section} aria-label="ניהול חודש">
+      <h2 style={styles.heading}>ניהול חודש</h2>
 
-      <select
-        style={{ ...styles.select, ...styles.monthSelect }}
-        value={selectedMonth}
-        onChange={event => changeMonth(event.target.value)}
-        aria-label="חודש"
-      >
-        {monthsForYear.map(key => {
-          const month = key.slice(5, 7)
-          return (
-            <option key={key} value={month}>
-              {MONTHS[Number(month) - 1]}
-            </option>
-          )
-        })}
-      </select>
-    </div>
+      <div style={styles.fields}>
+        <label style={styles.field}>
+          <span style={styles.label}>שנה</span>
+          <select
+            style={styles.select}
+            value={selectedYear}
+            onChange={event => changeYear(event.target.value)}
+            aria-label="שנה"
+          >
+            {years.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </label>
+
+        <label style={styles.field}>
+          <span style={styles.label}>חודש</span>
+          <select
+            style={styles.select}
+            value={selectedMonth}
+            onChange={event => changeMonth(event.target.value)}
+            aria-label="חודש"
+          >
+            {MONTHS.map((monthName, index) => {
+              const value = padMonth(index + 1)
+              return (
+                <option key={value} value={value}>
+                  {monthName}
+                </option>
+              )
+            })}
+          </select>
+        </label>
+      </div>
+    </section>
   )
 }
 
 const styles = {
-  shell: {
-    position: 'fixed',
-    zIndex: 40,
-    top: 'max(10px, env(safe-area-inset-top))',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: 'min(300px, calc(100% - 126px))',
-    minHeight: '44px',
-    display: 'grid',
-    gridTemplateColumns: '0.88fr 1.12fr',
-    gap: '6px',
-    padding: '5px',
+  section: {
+    width: 'min(480px, calc(100% - 32px))',
+    margin: '10px auto 2px',
+    padding: '0',
+    direction: 'rtl',
     boxSizing: 'border-box',
-    border: '1px solid var(--border)',
-    borderRadius: '15px',
-    background: 'var(--surface)',
-    boxShadow: 'var(--shadow)',
+  },
+  heading: {
+    margin: '0 0 14px',
+    textAlign: 'center',
+    color: 'var(--text)',
+    fontSize: '22px',
+    lineHeight: 1.2,
+    fontWeight: 800,
+  },
+  fields: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+  },
+  field: {
+    display: 'grid',
+    gap: '7px',
+    minWidth: 0,
+  },
+  label: {
+    paddingRight: '4px',
+    color: 'var(--text-muted)',
+    fontSize: '12px',
+    fontWeight: 750,
   },
   select: {
     width: '100%',
     minWidth: 0,
-    minHeight: '34px',
-    border: 0,
-    borderRadius: '10px',
-    padding: '0 9px',
-    background: 'var(--surface-soft)',
+    minHeight: '54px',
+    padding: '0 14px',
+    border: '1px solid var(--border)',
+    borderRadius: '16px',
+    background: 'var(--surface)',
     color: 'var(--text)',
-    fontSize: '13px',
-    fontWeight: 700,
+    fontSize: '18px',
+    fontWeight: 780,
     outline: 'none',
     direction: 'rtl',
-  },
-  monthSelect: {
-    textAlign: 'right',
+    boxSizing: 'border-box',
   },
 }
