@@ -94,16 +94,30 @@ function App() {
   useEffect(() => {
     if (!isSignedIn) return
 
+    let active = true
     const currentMonthKey = getMonthKey()
-    preloadFinancialData(currentMonthKey).catch(() => {})
 
-    fetchAvailableMonths()
-      .then(keys => {
+    ;(async () => {
+      try {
+        // loadMonth now also returns the workbook's month list, so app start
+        // needs one data request instead of loading the same sheet twice.
+        const preload = await preloadFinancialData(currentMonthKey)
+        const keys = preload?.availableMonths?.length
+          ? preload.availableMonths
+          : await fetchAvailableMonths()
+        if (!active) return
+
         const clean = Array.isArray(keys) && keys.length ? keys : [currentMonthKey]
         setAvailableMonthKeys(clean)
-        if (!clean.includes(selectedMonthKey)) setSelectedMonthKey(clean.at(-1) || currentMonthKey)
-      })
-      .catch(() => {})
+        setSelectedMonthKey(current => clean.includes(current) ? current : (clean.at(-1) || currentMonthKey))
+      } catch {
+        // Keep the current month usable even if a background preload fails.
+      }
+    })()
+
+    return () => {
+      active = false
+    }
   }, [isSignedIn])
 
   useEffect(() => {

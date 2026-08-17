@@ -8,6 +8,7 @@ import {
   clearExpenseRuntimeCache,
   deleteTransaction,
   ensureMonthOnly,
+  getExpenseSpreadsheetId,
   loadCurrentMonth,
   listAvailableMonths,
   updateSummaryCells,
@@ -28,28 +29,34 @@ function json(data, status = 200, headers = {}) {
 async function executeAction(session, body) {
   const action = body.action || 'loadMonth'
   const monthKey = body.monthKey
+  const spreadsheetHint = session.spreadsheetId
 
   switch (action) {
     case 'loadMonth':
-      return loadCurrentMonth(session.accessToken, session.cacheKey, monthKey)
+      return loadCurrentMonth(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
     case 'ensureMonth':
-      return ensureMonthOnly(session.accessToken, session.cacheKey, monthKey)
+      return ensureMonthOnly(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
     case 'listMonths':
-      return listAvailableMonths(session.accessToken, session.cacheKey, monthKey)
+      return listAvailableMonths(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
     case 'appendTransaction':
-      return appendTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction)
+      return appendTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction, spreadsheetHint)
     case 'updateTransaction':
-      return updateTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction)
+      return updateTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction, spreadsheetHint)
     case 'deleteTransaction':
-      return deleteTransaction(session.accessToken, session.cacheKey, monthKey, body.rowIndex)
+      return deleteTransaction(session.accessToken, session.cacheKey, monthKey, body.rowIndex, spreadsheetHint)
     case 'updateSummaryCells':
-      return updateSummaryCells(session.accessToken, session.cacheKey, monthKey, body.updates)
+      return updateSummaryCells(session.accessToken, session.cacheKey, monthKey, body.updates, spreadsheetHint)
     default: {
       const error = new Error('Unknown action')
       error.status = 400
       throw error
     }
   }
+}
+
+function updatedSessionCookie(session) {
+  const spreadsheetId = getExpenseSpreadsheetId(session.cacheKey) || session.spreadsheetId
+  return session.sessionCookieForSpreadsheet?.(spreadsheetId) || session.sessionCookie
 }
 
 export default {
@@ -80,17 +87,18 @@ export default {
       try {
         result = await executeAction(session, body)
       } catch (error) {
-        // Preserve the old client behavior: if Google unexpectedly rejects a
-        // cached short-lived token, refresh once on the server and retry.
+        // If Google unexpectedly rejects a short-lived access token, force a
+        // refresh once. This also replaces any stale token carried in the
+        // encrypted session cookie.
         if (error?.status !== 401) throw error
 
         clearExpenseRuntimeCache(session.cacheKey)
         clearServerSessionCache(session.cacheKey)
-        session = await getGoogleSession(request)
+        session = await getGoogleSession(request, { forceRefresh: true })
         result = await executeAction(session, body)
       }
 
-      return json({ ok: true, result }, 200, { 'Set-Cookie': session.sessionCookie })
+      return json({ ok: true, result }, 200, { 'Set-Cookie': updatedSessionCookie(session) })
     } catch (error) {
       console.error('Expense data API failed:', error)
 
@@ -105,7 +113,7 @@ export default {
       }
 
       return json({ error: error?.message || 'data_request_failed' }, error?.status || 500, {
-        'Set-Cookie': session.sessionCookie,
+        'Set-Cookie': updatedSessionCookie(session),
       })
     }
   },

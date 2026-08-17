@@ -26,6 +26,7 @@ function getSessionContext(cacheKey) {
       spreadsheetId: null,
       metadata: null,
       monthContexts: new Map(),
+      monthPromises: new Map(),
       resolvePromise: null,
     })
   }
@@ -34,6 +35,10 @@ function getSessionContext(cacheKey) {
 
 export function clearExpenseRuntimeCache(cacheKey) {
   if (cacheKey) sessionContexts.delete(cacheKey)
+}
+
+export function getExpenseSpreadsheetId(cacheKey) {
+  return cacheKey ? sessionContexts.get(cacheKey)?.spreadsheetId ?? null : null
 }
 
 function validateMonthKey(monthKey) {
@@ -63,6 +68,16 @@ function findSheet(metadata, title) {
 function extractMonthKey(title) {
   const match = String(title ?? '').match(/^(?:תנועות|סיכום) (\d{4}-\d{2})$/)
   return match?.[1] ?? null
+}
+
+function monthKeysFromMetadata(metadata, currentMonthKey = null) {
+  const keys = new Set()
+  for (const sheet of metadata?.sheets ?? []) {
+    const key = extractMonthKey(sheet.properties?.title)
+    if (key) keys.add(key)
+  }
+  if (currentMonthKey) keys.add(currentMonthKey)
+  return [...keys].sort()
 }
 
 function getLatestPreviousMonthKey(metadata, currentMonthKey) {
@@ -244,6 +259,21 @@ async function resolveSpreadsheet(googleRequest, session, monthKey) {
   if (session.resolvePromise) return session.resolvePromise
 
   session.resolvePromise = (async () => {
+    // Fast path for serverless cold starts: the encrypted session cookie can
+    // carry the workbook ID from a previous request. Validate it with one
+    // Sheets metadata call instead of doing two Drive appData lookups first.
+    if (session.spreadsheetId) {
+      try {
+        const metadata = await getMetadata(googleRequest, session.spreadsheetId)
+        session.metadata = metadata
+        return { spreadsheetId: session.spreadsheetId, metadata }
+      } catch (error) {
+        if (![403, 404].includes(error?.status)) throw error
+        session.spreadsheetId = null
+        session.metadata = null
+      }
+    }
+
     const canonical = await readCanonicalSpreadsheetId(googleRequest)
 
     if (canonical.spreadsheetId) {
@@ -281,20 +311,13 @@ async function readMonthDataRaw(googleRequest, spreadsheetId, monthKey) {
   const tabs = tabsForMonth(monthKey)
   const ranges = [
     a1(tabs.transactions, 'A2:H'),
-    a1(tabs.summary, 'B2'),
-    a1(tabs.summary, 'B3'),
-    a1(tabs.summary, 'B4'),
-    a1(tabs.summary, 'B5'),
-    a1(tabs.summary, 'B6'),
-    a1(tabs.summary, 'B7'),
-    a1(tabs.summary, 'B8'),
+    a1(tabs.summary, 'B2:B8'),
   ]
   const query = ranges.map(range => `ranges=${encodeURIComponent(range)}`).join('&')
   const data = await googleRequest(`${SHEETS_BASE}/${spreadsheetId}/values:batchGet?${query}`)
   const transactionRows = data.valueRanges?.[0]?.values ?? []
-  const summaryValues = Array.from({ length: 7 }, (_, index) =>
-    data.valueRanges?.[index + 1]?.values?.[0]?.[0] ?? ''
-  )
+  const summaryRows = data.valueRanges?.[1]?.values ?? []
+  const summaryValues = Array.from({ length: 7 }, (_, index) => summaryRows[index]?.[0] ?? '')
   const [checking, credit, trackingStartDate, essential, discretionary, previousCharges, wallet] = summaryValues
 
   return {
@@ -364,18 +387,6 @@ async function getCarryForward(googleRequest, spreadsheetId, metadata, currentMo
   }
 }
 
-async function ensureTransactionHeaders(googleRequest, spreadsheetId, tabs) {
-  await googleRequest(`${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`, {
-    method: 'POST',
-    body: JSON.stringify({
-      valueInputOption: 'USER_ENTERED',
-      data: [
-        { range: a1(tabs.transactions, 'A1:H1'), values: [TRANSACTION_HEADERS] },
-      ],
-    }),
-  })
-}
-
 async function createMonthTabs(googleRequest, spreadsheetId, metadata, monthKey) {
   const tabs = tabsForMonth(monthKey)
   const missingTransactions = !findSheet(metadata, tabs.transactions)
@@ -422,49 +433,62 @@ async function createMonthTabs(googleRequest, spreadsheetId, metadata, monthKey)
   return getMetadata(googleRequest, spreadsheetId)
 }
 
-async function ensureCurrentMonth(accessToken, cacheKey, rawMonthKey) {
+async function ensureCurrentMonth(accessToken, cacheKey, rawMonthKey, spreadsheetHint = null) {
   const monthKey = validateMonthKey(rawMonthKey)
   const googleRequest = createGoogleRequest(accessToken)
   const session = getSessionContext(cacheKey)
 
+  if (spreadsheetHint && !session.spreadsheetId) {
+    session.spreadsheetId = spreadsheetHint
+  }
+
   const existingMonth = session.monthContexts.get(monthKey)
   if (existingMonth) return { googleRequest, ...existingMonth }
 
-  try {
-    const resolved = await resolveSpreadsheet(googleRequest, session, monthKey)
-    let metadata = resolved.metadata
-    metadata = await migrateLegacyTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
-    metadata = await createMonthTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
-    await ensureTransactionHeaders(googleRequest, resolved.spreadsheetId, tabsForMonth(monthKey))
-    session.metadata = metadata
+  if (!session.monthPromises.has(monthKey)) {
+    const promise = (async () => {
+      try {
+        const resolved = await resolveSpreadsheet(googleRequest, session, monthKey)
+        let metadata = resolved.metadata
+        metadata = await migrateLegacyTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
+        metadata = await createMonthTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
+        session.metadata = metadata
 
-    const context = {
-      spreadsheetId: resolved.spreadsheetId,
-      monthKey,
-      tabs: tabsForMonth(monthKey),
-      metadata,
-    }
-    session.monthContexts.set(monthKey, context)
-    return { googleRequest, ...context }
-  } catch (error) {
-    if (![403, 404].includes(error?.status)) throw error
+        const context = {
+          spreadsheetId: resolved.spreadsheetId,
+          monthKey,
+          tabs: tabsForMonth(monthKey),
+          metadata,
+        }
+        session.monthContexts.set(monthKey, context)
+        return context
+      } catch (error) {
+        if (![403, 404].includes(error?.status)) throw error
 
-    clearExpenseRuntimeCache(cacheKey)
-    const freshSession = getSessionContext(cacheKey)
-    const resolved = await resolveSpreadsheet(googleRequest, freshSession, monthKey)
-    let metadata = await migrateLegacyTabs(googleRequest, resolved.spreadsheetId, resolved.metadata, monthKey)
-    metadata = await createMonthTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
-    await ensureTransactionHeaders(googleRequest, resolved.spreadsheetId, tabsForMonth(monthKey))
-    freshSession.metadata = metadata
-    const context = {
-      spreadsheetId: resolved.spreadsheetId,
-      monthKey,
-      tabs: tabsForMonth(monthKey),
-      metadata,
-    }
-    freshSession.monthContexts.set(monthKey, context)
-    return { googleRequest, ...context }
+        clearExpenseRuntimeCache(cacheKey)
+        const freshSession = getSessionContext(cacheKey)
+        const resolved = await resolveSpreadsheet(googleRequest, freshSession, monthKey)
+        let metadata = await migrateLegacyTabs(googleRequest, resolved.spreadsheetId, resolved.metadata, monthKey)
+        metadata = await createMonthTabs(googleRequest, resolved.spreadsheetId, metadata, monthKey)
+        freshSession.metadata = metadata
+        const context = {
+          spreadsheetId: resolved.spreadsheetId,
+          monthKey,
+          tabs: tabsForMonth(monthKey),
+          metadata,
+        }
+        freshSession.monthContexts.set(monthKey, context)
+        return context
+      }
+    })().finally(() => {
+      session.monthPromises.delete(monthKey)
+    })
+
+    session.monthPromises.set(monthKey, promise)
   }
+
+  const context = await session.monthPromises.get(monthKey)
+  return { googleRequest, ...context }
 }
 
 async function normalizeCurrentSummary(googleRequest, spreadsheetId, monthKey, tabs, summary) {
@@ -501,8 +525,8 @@ async function normalizeCurrentSummary(googleRequest, spreadsheetId, monthKey, t
   }
 }
 
-export async function loadCurrentMonth(accessToken, cacheKey, monthKey) {
-  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
+export async function loadCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   const raw = await readMonthDataRaw(context.googleRequest, context.spreadsheetId, context.monthKey)
   const summary = await normalizeCurrentSummary(
     context.googleRequest,
@@ -511,11 +535,15 @@ export async function loadCurrentMonth(accessToken, cacheKey, monthKey) {
     context.tabs,
     raw.summary
   )
-  return { summary, transactions: raw.transactions }
+  return {
+    summary,
+    transactions: raw.transactions,
+    availableMonths: monthKeysFromMetadata(context.metadata, context.monthKey),
+  }
 }
 
-export async function appendTransaction(accessToken, cacheKey, monthKey, transaction) {
-  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
+export async function appendTransaction(accessToken, cacheKey, monthKey, transaction, spreadsheetHint = null) {
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   const range = a1(context.tabs.transactions, 'A2:H')
   return context.googleRequest(
     `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
@@ -526,11 +554,11 @@ export async function appendTransaction(accessToken, cacheKey, monthKey, transac
   )
 }
 
-export async function updateTransaction(accessToken, cacheKey, monthKey, transaction) {
+export async function updateTransaction(accessToken, cacheKey, monthKey, transaction, spreadsheetHint = null) {
   const row = Number(transaction?.rowIndex)
   if (!Number.isInteger(row) || row < 2) throw new Error('Invalid transaction row')
 
-  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   const range = a1(context.tabs.transactions, `A${row}:H${row}`)
   return context.googleRequest(
     `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
@@ -541,11 +569,11 @@ export async function updateTransaction(accessToken, cacheKey, monthKey, transac
   )
 }
 
-export async function deleteTransaction(accessToken, cacheKey, monthKey, rowIndex) {
+export async function deleteTransaction(accessToken, cacheKey, monthKey, rowIndex, spreadsheetHint = null) {
   const row = Number(rowIndex)
   if (!Number.isInteger(row) || row < 2) throw new Error('Invalid transaction row')
 
-  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   const sheet = findSheet(context.metadata, context.tabs.transactions)
   if (!sheet) throw new Error(`Sheet tab not found: ${context.tabs.transactions}`)
 
@@ -568,13 +596,13 @@ export async function deleteTransaction(accessToken, cacheKey, monthKey, rowInde
   })
 }
 
-export async function updateSummaryCells(accessToken, cacheKey, monthKey, updates) {
+export async function updateSummaryCells(accessToken, cacheKey, monthKey, updates, spreadsheetHint = null) {
   const cleanUpdates = (updates ?? []).filter(
     item => Array.isArray(item) && item.length >= 2 && /^[A-Z]+\d+$/.test(String(item[0]))
   )
   if (!cleanUpdates.length) return null
 
-  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   return context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values:batchUpdate`, {
     method: 'POST',
     body: JSON.stringify({
@@ -587,22 +615,14 @@ export async function updateSummaryCells(accessToken, cacheKey, monthKey, update
   })
 }
 
-export async function ensureMonthOnly(accessToken, cacheKey, monthKey) {
-  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey)
+export async function ensureMonthOnly(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   return { spreadsheetId: context.spreadsheetId, monthKey: context.monthKey }
 }
 
 
-export async function listAvailableMonths(accessToken, cacheKey, currentMonthKey) {
+export async function listAvailableMonths(accessToken, cacheKey, currentMonthKey, spreadsheetHint = null) {
   const current = validateMonthKey(currentMonthKey)
-  const context = await ensureCurrentMonth(accessToken, cacheKey, current)
-  const keys = new Set()
-
-  for (const sheet of context.metadata.sheets ?? []) {
-    const key = extractMonthKey(sheet.properties?.title)
-    if (key) keys.add(key)
-  }
-
-  keys.add(current)
-  return [...keys].sort()
+  const context = await ensureCurrentMonth(accessToken, cacheKey, current, spreadsheetHint)
+  return monthKeysFromMetadata(context.metadata, current)
 }

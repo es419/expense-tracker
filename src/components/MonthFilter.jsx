@@ -87,7 +87,7 @@ export default function MonthFilter() {
 const styles = {
   section: {
     width: '100%',
-    margin: '16px auto 0',
+    margin: '6px auto 0',
     padding: '0',
     direction: 'rtl',
     textAlign: 'center',
@@ -105,13 +105,13 @@ const styles = {
   select: {
     width: '100%',
     minWidth: 0,
-    minHeight: '62px',
+    minHeight: '56px',
     padding: '0 18px',
     border: '1px solid var(--border)',
     borderRadius: '17px',
     background: 'var(--surface)',
     color: 'var(--text)',
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: 800,
     outline: 'none',
     direction: 'rtl',

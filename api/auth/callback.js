@@ -2,7 +2,7 @@ import {
   REFRESH_COOKIE,
   STATE_COOKIE,
   clearCookie,
-  encryptRefreshToken,
+  encryptSessionTokens,
   exchangeAuthorizationCode,
   getOrigin,
   parseCookies,
@@ -42,7 +42,11 @@ export default {
         return new Response(null, { status: 302, headers })
       }
 
-      const encryptedRefreshToken = encryptRefreshToken(tokens.refresh_token)
+      const encryptedRefreshToken = encryptSessionTokens({
+        refreshToken: tokens.refresh_token,
+        accessToken: tokens.access_token,
+        accessTokenExpiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000,
+      })
       headers.append('Set-Cookie', serializeCookie(REFRESH_COOKIE, encryptedRefreshToken, request, {
         maxAge: 365 * 24 * 60 * 60,
       }))

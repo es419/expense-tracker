@@ -3,13 +3,40 @@ import { getMonthKey } from '../utils/billing'
 // In-memory view cache only. Financial data is never written to browser storage.
 const monthCache = new Map()
 const monthPromises = new Map()
+let availableMonthsCache = null
+
+const SUMMARY_CELL_FIELDS = {
+  B2: 'checking',
+  B3: 'credit',
+  B4: 'trackingStartDate',
+  B5: 'essential',
+  B6: 'discretionary',
+  B7: 'previousCharges',
+  B8: 'wallet',
+}
 
 function cloneTransactions(items) {
   return items ? items.map(item => ({ ...item })) : null
 }
 
+function cloneMonth(value) {
+  if (!value) return null
+  return {
+    summary: value.summary ? { ...value.summary } : null,
+    transactions: cloneTransactions(value.transactions) ?? [],
+    availableMonths: Array.isArray(value.availableMonths) ? [...value.availableMonths] : [],
+  }
+}
+
 function cacheFor(monthKey) {
   return monthCache.get(monthKey) ?? null
+}
+
+function setMonthCache(monthKey, value) {
+  const cached = cloneMonth(value)
+  monthCache.set(monthKey, cached)
+  if (cached.availableMonths.length) availableMonthsCache = [...cached.availableMonths]
+  return cloneMonth(cached)
 }
 
 function clearMonthCache(monthKey) {
@@ -20,6 +47,7 @@ function clearMonthCache(monthKey) {
 function clearAllFinancialViewCache() {
   monthCache.clear()
   monthPromises.clear()
+  availableMonthsCache = null
 }
 
 async function apiRequest(action, payload = {}, monthKey = getMonthKey()) {
@@ -52,33 +80,41 @@ async function apiRequest(action, payload = {}, monthKey = getMonthKey()) {
 
 async function loadMonth(monthKey = getMonthKey()) {
   const cached = cacheFor(monthKey)
-  if (cached) {
-    return {
-      summary: cached.summary ? { ...cached.summary } : null,
-      transactions: cloneTransactions(cached.transactions) ?? [],
-    }
-  }
+  if (cached) return cloneMonth(cached)
 
   if (monthPromises.has(monthKey)) return monthPromises.get(monthKey)
 
   const promise = apiRequest('loadMonth', {}, monthKey)
-    .then(result => {
-      const value = {
-        summary: result?.summary ? { ...result.summary } : null,
-        transactions: cloneTransactions(result?.transactions ?? []) ?? [],
-      }
-      monthCache.set(monthKey, value)
-      return {
-        summary: value.summary ? { ...value.summary } : null,
-        transactions: cloneTransactions(value.transactions) ?? [],
-      }
-    })
+    .then(result => setMonthCache(monthKey, {
+      summary: result?.summary ? { ...result.summary } : null,
+      transactions: cloneTransactions(result?.transactions ?? []) ?? [],
+      availableMonths: Array.isArray(result?.availableMonths) ? result.availableMonths : [],
+    }))
     .finally(() => {
       monthPromises.delete(monthKey)
     })
 
   monthPromises.set(monthKey, promise)
   return promise
+}
+
+function rowIndexFromAppendResult(result) {
+  const range = String(result?.updates?.updatedRange ?? '')
+  const match = range.match(/!A(\d+):H\d+$/)
+  const row = Number(match?.[1])
+  return Number.isInteger(row) && row >= 2 ? row : null
+}
+
+function patchCachedTransactions(monthKey, updater) {
+  const cached = cacheFor(monthKey)
+  if (!cached) return false
+
+  const nextTransactions = updater(cloneTransactions(cached.transactions) ?? [])
+  setMonthCache(monthKey, {
+    ...cached,
+    transactions: nextTransactions,
+  })
+  return true
 }
 
 export function getCachedTransactions(monthKey = getMonthKey()) {
@@ -101,29 +137,66 @@ export async function fetchSummary(monthKey = getMonthKey()) {
 }
 
 export async function preloadFinancialData(monthKey = getMonthKey()) {
-  await loadMonth(monthKey)
+  return loadMonth(monthKey)
 }
 
 export async function fetchAvailableMonths() {
+  if (availableMonthsCache?.length) return [...availableMonthsCache]
+
   const result = await apiRequest('listMonths', {}, getMonthKey())
-  return Array.isArray(result) ? result : []
+  availableMonthsCache = Array.isArray(result) ? [...result] : []
+  return [...availableMonthsCache]
 }
 
 export async function appendTransaction(transaction, monthKey = getMonthKey()) {
   const result = await apiRequest('appendTransaction', { transaction }, monthKey)
-  clearMonthCache(monthKey)
+  const rowIndex = rowIndexFromAppendResult(result)
+
+  if (rowIndex) {
+    patchCachedTransactions(monthKey, current => [
+      ...current,
+      { ...transaction, rowIndex },
+    ])
+  } else {
+    // Fall back to a real read only if Google did not return the appended row.
+    clearMonthCache(monthKey)
+  }
+
   return result
 }
 
 export async function updateTransaction(transaction, monthKey = getMonthKey()) {
   const result = await apiRequest('updateTransaction', { transaction }, monthKey)
-  clearMonthCache(monthKey)
+  const row = Number(transaction?.rowIndex)
+
+  if (Number.isInteger(row) && row >= 2) {
+    patchCachedTransactions(monthKey, current => current.map(item =>
+      Number(item.rowIndex) === row ? { ...transaction, rowIndex: row } : item
+    ))
+  } else {
+    clearMonthCache(monthKey)
+  }
+
   return result
 }
 
 export async function deleteTransaction(rowIndex, monthKey = getMonthKey()) {
   const result = await apiRequest('deleteTransaction', { rowIndex }, monthKey)
-  clearMonthCache(monthKey)
+  const row = Number(rowIndex)
+
+  if (Number.isInteger(row) && row >= 2) {
+    patchCachedTransactions(monthKey, current => current
+      .filter(item => Number(item.rowIndex) !== row)
+      .map(item => {
+        const itemRow = Number(item.rowIndex)
+        return Number.isInteger(itemRow) && itemRow > row
+          ? { ...item, rowIndex: itemRow - 1 }
+          : item
+      }))
+  } else {
+    clearMonthCache(monthKey)
+  }
+
   return result
 }
 
@@ -138,7 +211,19 @@ export async function updateSummaryCells(updates, monthKey = getMonthKey()) {
   if (!cleanUpdates.length) return null
 
   const result = await apiRequest('updateSummaryCells', { updates: cleanUpdates }, monthKey)
-  clearMonthCache(monthKey)
+  const cached = cacheFor(monthKey)
+
+  if (cached?.summary) {
+    const nextSummary = { ...cached.summary }
+    for (const [cell, value] of cleanUpdates) {
+      const field = SUMMARY_CELL_FIELDS[String(cell)]
+      if (field) nextSummary[field] = value
+    }
+    setMonthCache(monthKey, { ...cached, summary: nextSummary })
+  } else {
+    clearMonthCache(monthKey)
+  }
+
   return result
 }
 

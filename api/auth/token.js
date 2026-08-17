@@ -1,7 +1,8 @@
 import {
   REFRESH_COOKIE,
   clearCookie,
-  decryptRefreshToken,
+  decryptSessionTokens,
+  encryptSessionTokens,
   parseCookies,
   refreshAccessToken,
   serializeCookie,
@@ -21,7 +22,8 @@ function json(data, status = 200, headers = {}) {
 export default {
   async fetch(request) {
     const cookies = parseCookies(request)
-    const refreshToken = decryptRefreshToken(cookies[REFRESH_COOKIE])
+    const session = decryptSessionTokens(cookies[REFRESH_COOKIE])
+    const refreshToken = session?.refreshToken
 
     if (!refreshToken) {
       return json({ authenticated: false }, 401)
@@ -35,7 +37,12 @@ export default {
         expires_in: tokens.expires_in || 3600,
       }, 200, {
         // Sliding one-year cookie: normal use keeps the local session alive.
-        'Set-Cookie': serializeCookie(REFRESH_COOKIE, cookies[REFRESH_COOKIE], request, {
+        'Set-Cookie': serializeCookie(REFRESH_COOKIE, encryptSessionTokens({
+          refreshToken,
+          accessToken: tokens.access_token,
+          accessTokenExpiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000,
+          spreadsheetId: session?.spreadsheetId || null,
+        }), request, {
           maxAge: 365 * 24 * 60 * 60,
         }),
       })

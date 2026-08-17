@@ -330,8 +330,8 @@ const styles = {
   },
   saveBtn: {
     width: '100%',
-    minHeight: '48px',
-    padding: '12px 18px',
+    minHeight: '52px',
+    padding: '14px 18px',
     background: 'var(--button)',
     color: 'var(--button-text)',
     border: 'none',

@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import {
   REFRESH_COOKIE,
   clearCookie,
-  decryptRefreshToken,
+  decryptSessionTokens,
+  encryptSessionTokens,
   parseCookies,
   refreshAccessToken,
   serializeCookie,
@@ -15,6 +16,19 @@ function sessionKey(refreshToken) {
   return createHash('sha256').update(refreshToken).digest('hex')
 }
 
+function makeSessionCookie(request, state) {
+  const encrypted = encryptSessionTokens({
+    refreshToken: state.refreshToken,
+    accessToken: state.accessToken,
+    accessTokenExpiresAt: state.expiresAt,
+    spreadsheetId: state.spreadsheetId,
+  })
+
+  return serializeCookie(REFRESH_COOKIE, encrypted, request, {
+    maxAge: 365 * 24 * 60 * 60,
+  })
+}
+
 export class AuthenticationError extends Error {
   constructor(message = 'Not signed in') {
     super(message)
@@ -23,62 +37,87 @@ export class AuthenticationError extends Error {
   }
 }
 
-export async function getGoogleSession(request) {
+export async function getGoogleSession(request, { forceRefresh = false } = {}) {
   const cookies = parseCookies(request)
-  const encryptedRefreshToken = cookies[REFRESH_COOKIE]
-  const refreshToken = decryptRefreshToken(encryptedRefreshToken)
+  const encryptedSession = cookies[REFRESH_COOKIE]
+  const cookieState = decryptSessionTokens(encryptedSession)
 
-  if (!refreshToken) throw new AuthenticationError()
+  if (!cookieState?.refreshToken) throw new AuthenticationError()
 
+  const refreshToken = cookieState.refreshToken
   const key = sessionKey(refreshToken)
   const cached = accessTokenCache.get(key)
-  if (cached?.accessToken && Date.now() < cached.expiresAt - 60_000) {
-    return {
-      accessToken: cached.accessToken,
-      cacheKey: key,
-      sessionCookie: serializeCookie(REFRESH_COOKIE, encryptedRefreshToken, request, {
-        maxAge: 365 * 24 * 60 * 60,
-      }),
+
+  let accessToken = null
+  let expiresAt = 0
+
+  if (!forceRefresh && cached?.accessToken && Date.now() < cached.expiresAt - 60_000) {
+    accessToken = cached.accessToken
+    expiresAt = cached.expiresAt
+  } else if (
+    !forceRefresh &&
+    cookieState.accessToken &&
+    Date.now() < cookieState.accessTokenExpiresAt - 60_000
+  ) {
+    // Reuse the encrypted short-lived access token across serverless instances.
+    // This removes the OAuth token refresh from the normal app-open path.
+    accessToken = cookieState.accessToken
+    expiresAt = cookieState.accessTokenExpiresAt
+    accessTokenCache.set(key, { accessToken, expiresAt })
+  } else {
+    if (!refreshPromises.has(key)) {
+      refreshPromises.set(
+        key,
+        refreshAccessToken(refreshToken)
+          .then(tokens => {
+            const value = {
+              accessToken: tokens.access_token,
+              expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000,
+            }
+            accessTokenCache.set(key, value)
+            return value
+          })
+          .finally(() => refreshPromises.delete(key))
+      )
+    }
+
+    try {
+      const value = await refreshPromises.get(key)
+      accessToken = value.accessToken
+      expiresAt = value.expiresAt
+    } catch (error) {
+      accessTokenCache.delete(key)
+      const authError = new AuthenticationError(error?.message || 'Google session refresh failed')
+      authError.code = error?.code || 'refresh_failed'
+      authError.clearCookie = clearCookie(REFRESH_COOKIE, request)
+      throw authError
     }
   }
 
-  if (!refreshPromises.has(key)) {
-    refreshPromises.set(
-      key,
-      refreshAccessToken(refreshToken)
-        .then(tokens => {
-          const value = {
-            accessToken: tokens.access_token,
-            expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000,
-          }
-          accessTokenCache.set(key, value)
-          return value
-        })
-        .finally(() => refreshPromises.delete(key))
-    )
+  const baseState = {
+    refreshToken,
+    accessToken,
+    expiresAt,
+    spreadsheetId: cookieState.spreadsheetId || null,
   }
 
-  try {
-    const value = await refreshPromises.get(key)
-    return {
-      accessToken: value.accessToken,
-      cacheKey: key,
-      sessionCookie: serializeCookie(REFRESH_COOKIE, encryptedRefreshToken, request, {
-        maxAge: 365 * 24 * 60 * 60,
-      }),
-    }
-  } catch (error) {
-    accessTokenCache.delete(key)
-    const authError = new AuthenticationError(error?.message || 'Google session refresh failed')
-    authError.code = error?.code || 'refresh_failed'
-    authError.clearCookie = clearCookie(REFRESH_COOKIE, request)
-    throw authError
+  return {
+    accessToken,
+    cacheKey: key,
+    spreadsheetId: baseState.spreadsheetId,
+    sessionCookie: makeSessionCookie(request, baseState),
+    sessionCookieForSpreadsheet(spreadsheetId) {
+      return makeSessionCookie(request, {
+        ...baseState,
+        spreadsheetId: spreadsheetId || baseState.spreadsheetId,
+      })
+    },
   }
 }
 
 export function hasSessionCookie(request) {
   const cookies = parseCookies(request)
-  return Boolean(decryptRefreshToken(cookies[REFRESH_COOKIE]))
+  return Boolean(decryptSessionTokens(cookies[REFRESH_COOKIE])?.refreshToken)
 }
 
 export function clearServerSessionCache(cacheKey) {

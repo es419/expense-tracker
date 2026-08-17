@@ -87,18 +87,18 @@ export function clearCookie(name, request) {
   return serializeCookie(name, '', request, { maxAge: 0 })
 }
 
-export function encryptRefreshToken(refreshToken) {
+function encryptCookiePayload(value) {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', cookieSecretKey(), iv)
   const encrypted = Buffer.concat([
-    cipher.update(refreshToken, 'utf8'),
+    cipher.update(value, 'utf8'),
     cipher.final(),
   ])
   const tag = cipher.getAuthTag()
   return Buffer.concat([iv, tag, encrypted]).toString('base64url')
 }
 
-export function decryptRefreshToken(payload) {
+function decryptCookiePayload(payload) {
   if (!payload) return null
 
   try {
@@ -118,6 +118,63 @@ export function decryptRefreshToken(payload) {
   } catch {
     return null
   }
+}
+
+// The old app stored only the refresh token in this encrypted cookie. The
+// versioned payload keeps that format backward-compatible while also carrying
+// a short-lived Google access token and the workbook ID. This avoids an OAuth
+// refresh and Drive lookup on most serverless cold starts without persisting
+// any financial data in the browser.
+export function encryptSessionTokens({
+  refreshToken,
+  accessToken = null,
+  accessTokenExpiresAt = 0,
+  spreadsheetId = null,
+}) {
+  if (!refreshToken) throw new Error('Missing refresh token')
+
+  return encryptCookiePayload(JSON.stringify({
+    v: 2,
+    refreshToken,
+    accessToken: accessToken || null,
+    accessTokenExpiresAt: Number(accessTokenExpiresAt) || 0,
+    spreadsheetId: spreadsheetId || null,
+  }))
+}
+
+export function decryptSessionTokens(payload) {
+  const decrypted = decryptCookiePayload(payload)
+  if (!decrypted) return null
+
+  try {
+    const parsed = JSON.parse(decrypted)
+    if (parsed?.v === 2 && typeof parsed.refreshToken === 'string' && parsed.refreshToken) {
+      return {
+        refreshToken: parsed.refreshToken,
+        accessToken: typeof parsed.accessToken === 'string' ? parsed.accessToken : null,
+        accessTokenExpiresAt: Number(parsed.accessTokenExpiresAt) || 0,
+        spreadsheetId: typeof parsed.spreadsheetId === 'string' ? parsed.spreadsheetId : null,
+      }
+    }
+  } catch {
+    // Legacy cookie: the decrypted value itself is the refresh token.
+  }
+
+  return {
+    refreshToken: decrypted,
+    accessToken: null,
+    accessTokenExpiresAt: 0,
+    spreadsheetId: null,
+  }
+}
+
+// Backward-compatible helpers used by logout/session endpoints.
+export function encryptRefreshToken(refreshToken) {
+  return encryptSessionTokens({ refreshToken })
+}
+
+export function decryptRefreshToken(payload) {
+  return decryptSessionTokens(payload)?.refreshToken ?? null
 }
 
 async function tokenRequest(body) {
