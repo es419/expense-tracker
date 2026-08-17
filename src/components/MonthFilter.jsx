@@ -50,19 +50,7 @@ export default function MonthFilter() {
     <section style={styles.section} aria-label="ניהול חודש">
       <div style={styles.fields}>
         <label style={styles.field}>
-          <select
-            style={styles.select}
-            value={selectedYear}
-            onChange={event => changeYear(event.target.value)}
-            aria-label="שנה"
-          >
-            {years.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        </label>
-
-        <label style={styles.field}>
+          <span style={styles.label}>חודש</span>
           <select
             style={styles.select}
             value={selectedMonth}
@@ -79,6 +67,21 @@ export default function MonthFilter() {
             })}
           </select>
         </label>
+
+
+        <label style={styles.field}>
+          <span style={styles.label}>שנה</span>
+          <select
+            style={styles.select}
+            value={selectedYear}
+            onChange={event => changeYear(event.target.value)}
+            aria-label="שנה"
+          >
+            {years.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </label>
       </div>
     </section>
   )
@@ -87,7 +90,7 @@ export default function MonthFilter() {
 const styles = {
   section: {
     width: '100%',
-    margin: '6px auto 0',
+    margin: '8px auto 0',
     padding: '0',
     direction: 'rtl',
     textAlign: 'center',
@@ -95,24 +98,37 @@ const styles = {
   },
   fields: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    alignItems: 'end',
     gap: '12px',
   },
   field: {
     display: 'grid',
+    gap: '6px',
     minWidth: 0,
+  },
+  label: {
+    display: 'block',
+    color: 'var(--text-muted)',
+    fontSize: '12px',
+    fontWeight: 700,
+    lineHeight: 1.2,
+    textAlign: 'right',
+    paddingInline: '2px',
   },
   select: {
     width: '100%',
     minWidth: 0,
-    minHeight: '56px',
-    padding: '0 18px',
+    height: '46px',
+    minHeight: '46px',
+    padding: '0 12px',
     border: '1px solid var(--border)',
-    borderRadius: '17px',
+    borderRadius: '15px',
     background: 'var(--surface)',
     color: 'var(--text)',
-    fontSize: '18px',
-    fontWeight: 800,
+    fontSize: '17px',
+    fontWeight: 700,
+    lineHeight: 1.2,
     outline: 'none',
     direction: 'rtl',
     textAlign: 'center',
