@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { appendTransaction } from '../services/sheetsApi'
+import {
+  addCustomCategory,
+  appendTransaction,
+  deleteCustomCategory,
+  fetchCustomCategories,
+} from '../services/sheetsApi'
 import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '../config/sheetsConfig'
 import { formatHebrewDate, formatIsoDate, getCreditChargeDate, toIsoDate } from '../utils/billing'
 import { useSelectedMonth } from '../context/MonthContext'
@@ -39,10 +44,73 @@ function ChipRow({ label, options, value, onChange, allowClear = false, layout =
   )
 }
 
+function CustomCategoryChip({ name, selected, onSelect, onDelete }) {
+  const timerRef = useRef(null)
+  const startRef = useRef(null)
+  const suppressClickRef = useRef(false)
+
+  function clearPress() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = null
+    startRef.current = null
+  }
+
+  function startPress(event) {
+    clearPress()
+    startRef.current = { x: event.clientX, y: event.clientY }
+    timerRef.current = setTimeout(() => {
+      suppressClickRef.current = true
+      clearPress()
+      onDelete(name)
+    }, 650)
+  }
+
+  function movePress(event) {
+    if (!startRef.current) return
+    const dx = Math.abs(event.clientX - startRef.current.x)
+    const dy = Math.abs(event.clientY - startRef.current.y)
+    if (dx > 10 || dy > 10) clearPress()
+  }
+
+  return (
+    <button
+      type="button"
+      title="לחיצה ארוכה למחיקה"
+      aria-label={`${name}. לחיצה ארוכה למחיקה`}
+      onPointerDown={startPress}
+      onPointerMove={movePress}
+      onPointerUp={clearPress}
+      onPointerCancel={clearPress}
+      onPointerLeave={clearPress}
+      onContextMenu={event => {
+        event.preventDefault()
+        clearPress()
+        suppressClickRef.current = true
+        onDelete(name)
+      }}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false
+          return
+        }
+        onSelect(name)
+      }}
+      style={{
+        ...(selected ? styles.chipSelected : styles.chip),
+        ...styles.scrollChip,
+        ...styles.customCategoryChip,
+      }}
+    >
+      {name}
+    </button>
+  )
+}
+
 export default function AddTransaction() {
   const navigate = useNavigate()
   const { selectedMonthKey } = useSelectedMonth()
   const dateInputRef = useRef(null)
+  const customCategoryInputRef = useRef(null)
   const today = toIsoDate()
 
   function initialDateForMonth(monthKey) {
@@ -53,6 +121,10 @@ export default function AddTransaction() {
   const [type, setType] = useState('הוצאה')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
+  const [customCategories, setCustomCategories] = useState([])
+  const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false)
+  const [customCategoryName, setCustomCategoryName] = useState('')
+  const [categoryBusy, setCategoryBusy] = useState(false)
   const [budget, setBudget] = useState('')
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0])
   const [description, setDescription] = useState('')
@@ -64,10 +136,66 @@ export default function AddTransaction() {
     }
   }, [selectedMonthKey])
 
+  useEffect(() => {
+    let cancelled = false
+    fetchCustomCategories(selectedMonthKey)
+      .then(items => {
+        if (!cancelled) setCustomCategories(items)
+      })
+      .catch(error => console.error('Failed to load custom categories:', error))
+    return () => {
+      cancelled = true
+    }
+  }, [selectedMonthKey])
+
+  useEffect(() => {
+    if (showCustomCategoryInput) {
+      requestAnimationFrame(() => customCategoryInputRef.current?.focus())
+    }
+  }, [showCustomCategoryInput])
+
   const automaticChargeDate = useMemo(() => {
     if (paymentMethod !== 'אשראי' || type !== 'הוצאה') return date
     return formatIsoDate(getCreditChargeDate(date))
   }, [date, paymentMethod, type])
+
+  async function addCategory(event) {
+    event?.preventDefault?.()
+    const normalized = customCategoryName.trim().replace(/\s+/g, ' ')
+    if (!normalized || categoryBusy) return
+
+    setCategoryBusy(true)
+    try {
+      const items = await addCustomCategory(normalized, selectedMonthKey)
+      setCustomCategories(items)
+      const match = [...CATEGORIES, ...items].find(
+        item => item.toLocaleLowerCase('he') === normalized.toLocaleLowerCase('he')
+      )
+      setCategory(match || normalized)
+      setCustomCategoryName('')
+      setShowCustomCategoryInput(false)
+    } catch (error) {
+      alert('לא הצלחתי להוסיף את הקטגוריה: ' + error.message)
+    } finally {
+      setCategoryBusy(false)
+    }
+  }
+
+  async function removeCategory(name) {
+    if (categoryBusy) return
+    if (!confirm(`למחוק את הקטגוריה "${name}"?`)) return
+
+    setCategoryBusy(true)
+    try {
+      const items = await deleteCustomCategory(name, selectedMonthKey)
+      setCustomCategories(items)
+      if (category === name) setCategory(CATEGORIES[0])
+    } catch (error) {
+      alert('לא הצלחתי למחוק את הקטגוריה: ' + error.message)
+    } finally {
+      setCategoryBusy(false)
+    }
+  }
 
   async function save() {
     if (!amount || Number(amount) <= 0) return alert('נא להכניס סכום תקין')
@@ -146,13 +274,71 @@ export default function AddTransaction() {
 
         {type !== 'העברה לארנק' && (
           <>
-            <ChipRow
-              label="קטגוריה"
-              options={CATEGORIES}
-              value={category}
-              onChange={setCategory}
-              layout="scroll"
-            />
+            <div style={{ ...styles.field, ...styles.choiceField }}>
+              <label style={styles.label}>קטגוריה</label>
+              <div style={styles.scrollChipRow}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomCategoryInput(open => !open)
+                    setCustomCategoryName('')
+                  }}
+                  style={{
+                    ...(showCustomCategoryInput ? styles.chipSelected : styles.chip),
+                    ...styles.scrollChip,
+                    ...styles.addCategoryChip,
+                  }}
+                >
+                  + מותאמת
+                </button>
+
+                {CATEGORIES.map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setCategory(opt)}
+                    style={{
+                      ...(category === opt ? styles.chipSelected : styles.chip),
+                      ...styles.scrollChip,
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+
+                {customCategories.map(opt => (
+                  <CustomCategoryChip
+                    key={opt}
+                    name={opt}
+                    selected={category === opt}
+                    onSelect={setCategory}
+                    onDelete={removeCategory}
+                  />
+                ))}
+              </div>
+
+              {showCustomCategoryInput && (
+                <form style={styles.customCategoryForm} onSubmit={addCategory}>
+                  <input
+                    ref={customCategoryInputRef}
+                    style={styles.customCategoryInput}
+                    type="text"
+                    value={customCategoryName}
+                    onChange={event => setCustomCategoryName(event.target.value)}
+                    placeholder="שם הקטגוריה"
+                    maxLength={40}
+                    autoComplete="off"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!customCategoryName.trim() || categoryBusy}
+                    style={styles.customCategoryAddButton}
+                  >
+                    {categoryBusy ? '...' : 'הוסף'}
+                  </button>
+                </form>
+              )}
+            </div>
 
             <div style={styles.dualSection}>
               <ChipRow
@@ -361,6 +547,44 @@ const styles = {
   scrollChip: {
     flex: '0 0 auto',
     minWidth: '76px',
+  },
+  addCategoryChip: {
+    minWidth: '88px',
+  },
+  customCategoryChip: {
+    WebkitTouchCallout: 'none',
+    userSelect: 'none',
+  },
+  customCategoryForm: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) 72px',
+    gap: '6px',
+    marginTop: '7px',
+  },
+  customCategoryInput: {
+    width: '100%',
+    minWidth: 0,
+    height: '40px',
+    padding: '0 12px',
+    borderRadius: '12px',
+    border: '1px solid var(--border)',
+    boxSizing: 'border-box',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    outline: 'none',
+    fontSize: '14px',
+    fontWeight: 600,
+    textAlign: 'right',
+  },
+  customCategoryAddButton: {
+    height: '40px',
+    borderRadius: '12px',
+    border: '1px solid var(--primary)',
+    background: 'color-mix(in srgb, var(--primary) 14%, var(--surface))',
+    color: 'var(--primary)',
+    fontSize: '13px',
+    fontWeight: 800,
+    cursor: 'pointer',
   },
   billingInfo: {
     padding: '8px 10px',

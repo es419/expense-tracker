@@ -4,13 +4,16 @@ import {
   getGoogleSession,
 } from '../server/googleSession.js'
 import {
+  addCustomCategory,
   appendTransaction,
   clearExpenseRuntimeCache,
+  deleteCustomCategory,
   deleteTransaction,
   ensureMonthOnly,
   getExpenseSpreadsheetId,
   loadCurrentMonth,
   listAvailableMonths,
+  listCustomCategories,
   updateSummaryCells,
   updateTransaction,
 } from '../server/expenseStore.js'
@@ -38,6 +41,12 @@ async function executeAction(session, body) {
       return ensureMonthOnly(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
     case 'listMonths':
       return listAvailableMonths(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
+    case 'listCustomCategories':
+      return listCustomCategories(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
+    case 'addCustomCategory':
+      return addCustomCategory(session.accessToken, session.cacheKey, monthKey, body.category, spreadsheetHint)
+    case 'deleteCustomCategory':
+      return deleteCustomCategory(session.accessToken, session.cacheKey, monthKey, body.category, spreadsheetHint)
     case 'appendTransaction':
       return appendTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction, spreadsheetHint)
     case 'updateTransaction':

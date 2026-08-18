@@ -2,6 +2,7 @@ import {
   SHEET_TABS,
   TRANSACTION_COLUMNS,
   TRANSACTION_HEADERS,
+  CATEGORIES,
 } from '../src/config/sheetsConfig.js'
 import {
   computeFinancialState,
@@ -14,6 +15,8 @@ const DRIVE_FILES_BASE = 'https://www.googleapis.com/drive/v3/files'
 const DRIVE_UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3/files'
 const APP_SPREADSHEET_NAME = 'ניהול הוצאות'
 const APP_CONFIG_NAME = 'expense-tracker-config.json'
+const CUSTOM_CATEGORIES_SHEET = '_קטגוריות'
+const CUSTOM_CATEGORY_HEADER = 'קטגוריה'
 
 // Server-memory cache only: IDs and sheet metadata, never financial values.
 // It is keyed by the encrypted-session-derived cache key so sessions never
@@ -68,6 +71,21 @@ function findSheet(metadata, title) {
 function extractMonthKey(title) {
   const match = String(title ?? '').match(/^(?:תנועות|סיכום) (\d{4}-\d{2})$/)
   return match?.[1] ?? null
+}
+
+function normalizeCustomCategory(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 40)
+}
+
+function syncMetadataToSession(cacheKey, metadata) {
+  const session = getSessionContext(cacheKey)
+  session.metadata = metadata
+  for (const [monthKey, context] of session.monthContexts.entries()) {
+    session.monthContexts.set(monthKey, { ...context, metadata })
+  }
 }
 
 function monthKeysFromMetadata(metadata, currentMonthKey = null) {
@@ -613,6 +631,129 @@ export async function updateSummaryCells(accessToken, cacheKey, monthKey, update
       })),
     }),
   })
+}
+
+async function ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  let metadata = context.metadata
+  let sheet = findSheet(metadata, CUSTOM_CATEGORIES_SHEET)
+
+  if (!sheet) {
+    await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [
+          { addSheet: { properties: { title: CUSTOM_CATEGORIES_SHEET, hidden: true } } },
+        ],
+      }),
+    })
+
+    await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          { range: a1(CUSTOM_CATEGORIES_SHEET, 'A1'), values: [[CUSTOM_CATEGORY_HEADER]] },
+        ],
+      }),
+    })
+
+    metadata = await getMetadata(context.googleRequest, context.spreadsheetId)
+    syncMetadataToSession(cacheKey, metadata)
+    sheet = findSheet(metadata, CUSTOM_CATEGORIES_SHEET)
+  }
+
+  return { ...context, metadata, sheet }
+}
+
+async function readCustomCategoryRows(context) {
+  const range = a1(CUSTOM_CATEGORIES_SHEET, 'A2:A')
+  const data = await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}`
+  )
+
+  return (data.values ?? [])
+    .map((row, index) => ({ name: normalizeCustomCategory(row?.[0]), rowIndex: index + 2 }))
+    .filter(item => item.name)
+}
+
+export async function listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const rows = await readCustomCategoryRows(context)
+  const seen = new Set()
+  const result = []
+
+  for (const item of rows) {
+    const key = item.name.toLocaleLowerCase('he')
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(item.name)
+  }
+
+  return result
+}
+
+export async function addCustomCategory(accessToken, cacheKey, monthKey, rawCategory, spreadsheetHint = null) {
+  const category = normalizeCustomCategory(rawCategory)
+  if (!category) {
+    const error = new Error('Category name is required')
+    error.status = 400
+    throw error
+  }
+
+  const lower = category.toLocaleLowerCase('he')
+  if (CATEGORIES.some(item => item.toLocaleLowerCase('he') === lower)) {
+    return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
+  }
+
+  const context = await ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const existing = await readCustomCategoryRows(context)
+  if (existing.some(item => item.name.toLocaleLowerCase('he') === lower)) {
+    return existing.map(item => item.name)
+  }
+
+  const range = a1(CUSTOM_CATEGORIES_SHEET, 'A2:A')
+  await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ values: [[category]] }),
+    }
+  )
+
+  return [...existing.map(item => item.name), category]
+}
+
+export async function deleteCustomCategory(accessToken, cacheKey, monthKey, rawCategory, spreadsheetHint = null) {
+  const category = normalizeCustomCategory(rawCategory)
+  if (!category) return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
+
+  const context = await ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const rows = await readCustomCategoryRows(context)
+  const target = rows.find(item => item.name.toLocaleLowerCase('he') === category.toLocaleLowerCase('he'))
+  if (!target) return rows.map(item => item.name)
+
+  if (!context.sheet) throw new Error('Custom categories sheet not found')
+
+  await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: context.sheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: target.rowIndex - 1,
+              endIndex: target.rowIndex,
+            },
+          },
+        },
+      ],
+    }),
+  })
+
+  return rows.filter(item => item.rowIndex !== target.rowIndex).map(item => item.name)
 }
 
 export async function ensureMonthOnly(accessToken, cacheKey, monthKey, spreadsheetHint = null) {

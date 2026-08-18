@@ -153,6 +153,21 @@ export async function fetchAvailableMonths() {
   return [...availableMonthsCache]
 }
 
+export async function fetchCustomCategories(monthKey = getMonthKey()) {
+  const result = await apiRequest('listCustomCategories', {}, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function addCustomCategory(category, monthKey = getMonthKey()) {
+  const result = await apiRequest('addCustomCategory', { category }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function deleteCustomCategory(category, monthKey = getMonthKey()) {
+  const result = await apiRequest('deleteCustomCategory', { category }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
 export async function appendTransaction(transaction, monthKey = getMonthKey()) {
   const result = await apiRequest('appendTransaction', { transaction }, monthKey)
   const rowIndex = rowIndexFromAppendResult(result)
