@@ -6,11 +6,18 @@ import { TRANSACTION_TYPES, BUDGET_TYPES, PAYMENT_METHODS, CATEGORIES } from '..
 import { formatHebrewDate, formatIsoDate, getCreditChargeDate, toIsoDate } from '../utils/billing'
 import { useSelectedMonth } from '../context/MonthContext'
 
-function ChipRow({ label, options, value, onChange, allowClear = false }) {
+function ChipRow({ label, options, value, onChange, allowClear = false, layout = 'grid' }) {
+  const rowStyle = layout === 'scroll'
+    ? styles.scrollChipRow
+    : {
+        ...styles.segmentedRow,
+        gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
+      }
+
   return (
     <div style={{ ...styles.field, ...styles.choiceField }}>
       <label style={styles.label}>{label}</label>
-      <div style={styles.chipRow}>
+      <div style={rowStyle}>
         {options.map(opt => (
           <button
             key={opt}
@@ -19,7 +26,10 @@ function ChipRow({ label, options, value, onChange, allowClear = false }) {
               if (allowClear && value === opt) onChange('')
               else onChange(opt)
             }}
-            style={value === opt ? styles.chipSelected : styles.chip}
+            style={{
+              ...(value === opt ? styles.chipSelected : styles.chip),
+              ...(layout === 'scroll' ? styles.scrollChip : styles.gridChip),
+            }}
           >
             {opt}
           </button>
@@ -89,91 +99,106 @@ export default function AddTransaction() {
   return (
     <>
       <div style={styles.container}>
-      <div style={styles.field}>
-        <label style={styles.label}>תאריך</label>
-        <button
-          type="button"
-          style={styles.dateButton}
-          onClick={() => {
-            if (dateInputRef.current?.showPicker) dateInputRef.current.showPicker()
-            else dateInputRef.current?.click()
-          }}
-        >
-          <span style={styles.dateButtonValue}>{formatHebrewDate(date)}</span>
+        <div style={styles.topGrid}>
+          <div style={{ ...styles.field, marginBottom: 0 }}>
+            <label style={styles.label}>תאריך</label>
+            <button
+              type="button"
+              style={styles.dateButton}
+              onClick={() => {
+                if (dateInputRef.current?.showPicker) dateInputRef.current.showPicker()
+                else dateInputRef.current?.click()
+              }}
+            >
+              <span style={styles.dateButtonValue}>{formatHebrewDate(date)}</span>
+              <input
+                ref={dateInputRef}
+                style={styles.hiddenDateInput}
+                type="date"
+                min={`${selectedMonthKey}-01`}
+                max={formatIsoDate(new Date(Number(selectedMonthKey.slice(0, 4)), Number(selectedMonthKey.slice(5, 7)), 0))}
+                value={date}
+                onChange={e => setDate(e.target.value)}
+              />
+            </button>
+          </div>
+
+          <div style={{ ...styles.field, marginBottom: 0 }}>
+            <label style={styles.label}>סכום (₪)</label>
+            <input
+              style={{ ...styles.input, ...styles.amountInput }}
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              value={amount}
+              onChange={e => {
+                const normalized = e.target.value.replace(',', '.')
+                if (/^\d*(\.\d{0,2})?$/.test(normalized)) {
+                  setAmount(normalized)
+                }
+              }}
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        <ChipRow label="סוג" options={TRANSACTION_TYPES} value={type} onChange={setType} />
+
+        {type !== 'העברה לארנק' && (
+          <>
+            <ChipRow
+              label="קטגוריה"
+              options={CATEGORIES}
+              value={category}
+              onChange={setCategory}
+              layout="scroll"
+            />
+
+            <div style={styles.dualSection}>
+              <ChipRow
+                label="תקציב"
+                options={BUDGET_TYPES}
+                value={budget}
+                onChange={setBudget}
+                allowClear
+              />
+              <ChipRow
+                label="אמצעי תשלום"
+                options={PAYMENT_METHODS}
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+              />
+            </div>
+          </>
+        )}
+
+        <div style={styles.field}>
+          <label style={styles.label}>תיאור <span style={styles.optionalLabel}>אופציונלי</span></label>
           <input
-            ref={dateInputRef}
-            style={styles.hiddenDateInput}
-            type="date"
-            min={`${selectedMonthKey}-01`}
-            max={formatIsoDate(new Date(Number(selectedMonthKey.slice(0, 4)), Number(selectedMonthKey.slice(5, 7)), 0))}
-            value={date}
-            onChange={e => setDate(e.target.value)}
+            style={styles.input}
+            type="text"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="הערה קצרה"
+            maxLength={120}
           />
-        </button>
-      </div>
-
-      <div style={styles.field}>
-        <label style={styles.label}>סכום (₪)</label>
-        <input
-          style={{ ...styles.input, ...styles.amountInput }}
-          type="text"
-          inputMode="decimal"
-          pattern="[0-9]*[.,]?[0-9]*"
-          value={amount}
-          onChange={e => {
-            const normalized = e.target.value.replace(',', '.')
-            if (/^\d*(\.\d{0,2})?$/.test(normalized)) {
-              setAmount(normalized)
-            }
-          }}
-          placeholder="0"
-        />
-      </div>
-
-      <div style={styles.field}>
-        <label style={styles.label}>תיאור (אופציונלי)</label>
-        <input
-          style={styles.input}
-          type="text"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="למשל: תיקון, החזר, הערה"
-          maxLength={120}
-        />
-      </div>
-
-      <ChipRow label="סוג" options={TRANSACTION_TYPES} value={type} onChange={setType} />
-
-      {type !== 'העברה לארנק' && (
-        <>
-          <ChipRow label="קטגוריה" options={CATEGORIES} value={category} onChange={setCategory} />
-          <ChipRow
-            label="תקציב"
-            options={BUDGET_TYPES}
-            value={budget}
-            onChange={setBudget}
-            allowClear
-          />
-          <ChipRow label="אמצעי תשלום" options={PAYMENT_METHODS} value={paymentMethod} onChange={setPaymentMethod} />
-        </>
-      )}
-
-      {type === 'העברה לארנק' && (
-        <div style={styles.billingInfo}>
-          הסכום יירד מיד מהעו״ש ויתווסף ליתרת הארנק
         </div>
-      )}
 
-      {type === 'הוצאה' && (
-        <div style={styles.billingInfo}>
-          {paymentMethod === 'אשראי'
-            ? `יתווסף לאשראי ויירד מהעו״ש ב־${formatHebrewDate(automaticChargeDate)}`
-            : paymentMethod === 'מזומן'
-              ? 'יירד מיתרת הארנק מיד'
-              : 'יירד מיתרת העו״ש מיד'}
-        </div>
-      )}
+        {type === 'העברה לארנק' && (
+          <div style={styles.billingInfo}>
+            הסכום יירד מיד מהעו״ש ויתווסף ליתרת הארנק
+          </div>
+        )}
 
+        {type === 'הוצאה' && (
+          <div style={styles.billingInfo}>
+            {paymentMethod === 'אשראי'
+              ? `יתווסף לאשראי ויירד מהעו״ש ב־${formatHebrewDate(automaticChargeDate)}`
+              : paymentMethod === 'מזומן'
+                ? 'יירד מיתרת הארנק מיד'
+                : 'יירד מיתרת העו״ש מיד'}
+          </div>
+        )}
       </div>
 
       {createPortal(
@@ -190,39 +215,45 @@ export default function AddTransaction() {
 
 const styles = {
   container: {
-    padding: '10px 16px 160px',
+    padding: '4px 16px 160px',
     direction: 'rtl',
     maxWidth: '480px',
     margin: '0 auto',
   },
-  title: {
-    marginBottom: '8px',
-    padding: '0 54px',
-    boxSizing: 'border-box',
-    width: '100%',
-    textAlign: 'center',
-    fontSize: '18px',
-    lineHeight: 1.2,
+  topGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1.08fr .92fr',
+    gap: '10px',
+    marginBottom: '12px',
   },
   field: {
-    marginBottom: '8px',
+    minWidth: 0,
+    marginBottom: '10px',
   },
   choiceField: {
-    marginBottom: '6px',
+    marginBottom: '10px',
+  },
+  dualSection: {
+    display: 'grid',
+    gap: '0',
   },
   label: {
     display: 'block',
     fontSize: '12px',
-    fontWeight: 600,
+    fontWeight: 700,
     color: 'var(--text-muted)',
-    marginBottom: '3px',
+    marginBottom: '5px',
+  },
+  optionalLabel: {
+    fontWeight: 500,
+    opacity: .72,
   },
   input: {
     width: '100%',
     minWidth: 0,
     maxWidth: '100%',
-    minHeight: '48px',
-    padding: '0 16px',
+    minHeight: '46px',
+    padding: '0 14px',
     borderRadius: '14px',
     border: '1px solid var(--border)',
     fontSize: '16px',
@@ -238,8 +269,8 @@ const styles = {
   },
   dateButton: {
     width: '100%',
-    minHeight: '50px',
-    padding: '0 14px',
+    minHeight: '46px',
+    padding: '0 10px',
     borderRadius: '14px',
     border: '1px solid var(--border)',
     boxSizing: 'border-box',
@@ -253,8 +284,8 @@ const styles = {
     cursor: 'pointer',
   },
   dateButtonValue: {
-    fontSize: '16px',
-    fontWeight: 500,
+    fontSize: '15px',
+    fontWeight: 600,
     lineHeight: 1.2,
     textAlign: 'center',
     whiteSpace: 'nowrap',
@@ -269,53 +300,78 @@ const styles = {
   },
   amountInput: {
     textAlign: 'center',
+    fontWeight: 700,
   },
-  chipRow: {
-    display: 'flex',
-    flexWrap: 'wrap',
+  segmentedRow: {
+    display: 'grid',
     gap: '6px',
-    alignItems: 'center',
+    width: '100%',
+  },
+  scrollChipRow: {
+    display: 'flex',
+    gap: '6px',
+    width: 'calc(100% + 16px)',
+    marginLeft: '-16px',
+    paddingLeft: '16px',
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    WebkitOverflowScrolling: 'touch',
+    scrollbarWidth: 'none',
+    touchAction: 'pan-x',
   },
   chip: {
-    minHeight: '36px',
-    padding: '0 13px',
-    borderRadius: '999px',
+    minHeight: '38px',
+    padding: '0 12px',
+    borderRadius: '12px',
     border: '1px solid var(--border)',
     background: 'var(--surface)',
     color: 'var(--text)',
     cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 500,
+    fontSize: '13px',
+    fontWeight: 600,
     lineHeight: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     whiteSpace: 'nowrap',
-    boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset',
+    boxShadow: 'none',
   },
   chipSelected: {
-    minHeight: '40px',
-    padding: '0 15px',
-    borderRadius: '999px',
+    minHeight: '38px',
+    padding: '0 12px',
+    borderRadius: '12px',
     border: '1px solid var(--primary)',
-    background: 'var(--primary)',
-    color: 'var(--primary-text)',
+    background: 'color-mix(in srgb, var(--primary) 14%, var(--surface))',
+    color: 'var(--primary)',
     cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 700,
+    fontSize: '13px',
+    fontWeight: 800,
     lineHeight: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     whiteSpace: 'nowrap',
-    boxShadow: '0 6px 16px rgba(37, 99, 235, 0.18)',
+    boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent)',
+  },
+  gridChip: {
+    width: '100%',
+    minWidth: 0,
+    paddingInline: '6px',
+  },
+  scrollChip: {
+    flex: '0 0 auto',
+    minWidth: '76px',
   },
   billingInfo: {
-    padding: '7px 10px',
-    marginBottom: '6px',
+    padding: '8px 10px',
+    marginTop: '2px',
+    marginBottom: '4px',
     borderRadius: '12px',
     background: 'var(--surface-soft)',
-    fontSize: '14px',
+    color: 'var(--text-muted)',
+    fontSize: '12px',
+    fontWeight: 600,
+    lineHeight: 1.35,
     textAlign: 'center',
   },
   saveBar: {
@@ -343,4 +399,3 @@ const styles = {
     boxShadow: '0 10px 24px rgba(16, 24, 40, 0.12)',
   },
 }
-
