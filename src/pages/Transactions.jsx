@@ -10,6 +10,7 @@ export default function Transactions() {
   const [loading, setLoading] = useState(() => !cached)
   const [error, setError] = useState(null)
   const [deletingRow, setDeletingRow] = useState(null)
+  const [categoryFilter, setCategoryFilter] = useState('')
 
   useEffect(() => {
     const monthCached = getCachedTransactions(selectedMonthKey)
@@ -63,20 +64,54 @@ export default function Transactions() {
   if (loading) return <div style={styles.center} />
   if (error) return <div style={styles.center}>שגיאה: {error}</div>
 
-  const totalExpenses = transactions
-    .filter(t => t.type === 'הוצאה')
+  const categories = [...new Set(
+    transactions
+      .map(t => String(t.category || '').trim())
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b, 'he'))
+
+  const filteredTransactions = categoryFilter
+    ? transactions.filter(t => t.category === categoryFilter)
+    : transactions
+
+  const filteredExpenses = filteredTransactions.filter(t => t.type === 'הוצאה')
+  const totalExpenses = filteredExpenses
     .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
   return (
     <div style={styles.container}>
-      <button onClick={() => load()} style={styles.refresh}>רענן</button>
-      {transactions.length === 0 && (
-        <p style={styles.empty}>אין תנועות עדיין</p>
+      <div style={styles.toolbar}>
+        <label style={styles.filterField}>
+          <span style={styles.filterLabel}>סינון לפי קטגוריה</span>
+          <select
+            value={categoryFilter}
+            onChange={event => setCategoryFilter(event.target.value)}
+            style={styles.filterSelect}
+            aria-label="סינון רשומות לפי קטגוריה"
+          >
+            <option value="">כל הקטגוריות</option>
+            {categories.map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+        </label>
+        <button onClick={() => load()} style={styles.refresh}>רענן</button>
+      </div>
+
+      {filteredTransactions.length === 0 && (
+        <p style={styles.empty}>
+          {transactions.length === 0 ? 'אין תנועות עדיין' : 'אין תנועות בקטגוריה הזאת'}
+        </p>
       )}
-      {transactions.map((t, i) => (
+      {filteredTransactions.map((t, i) => (
         <div key={t.rowIndex ?? i} style={styles.row}>
           <div style={styles.details}>
-            <div style={styles.category}>{t.category}</div>
+            <div style={styles.categoryLine}>
+              <div style={styles.category}>{t.category}</div>
+              {String(t.description || '').includes('אוטומטי') ? (
+                <span style={styles.autoBadge}>אוטומטי</span>
+              ) : null}
+            </div>
             {t.description ? <div style={styles.description}>{t.description}</div> : null}
             <div style={styles.meta}>{transactionMeta(t)}</div>
           </div>
@@ -113,7 +148,16 @@ export default function Transactions() {
       ))}
 
       <div style={styles.totalBox}>
-        <span style={styles.totalLabel}>סך הכול הוצאות</span>
+        <div style={styles.totalText}>
+          <span style={styles.totalLabel}>
+            {categoryFilter ? `סיכום · ${categoryFilter}` : 'סך הכול הוצאות'}
+          </span>
+          {categoryFilter ? (
+            <span style={styles.totalCount}>
+              {filteredExpenses.length} {filteredExpenses.length === 1 ? 'הוצאה' : 'הוצאות'}
+            </span>
+          ) : null}
+        </div>
         <strong style={styles.totalValue}>{totalExpenses.toFixed(0)} ₪</strong>
       </div>
     </div>
@@ -130,8 +174,36 @@ const styles = {
     textAlign: 'center',
     fontSize: '22px',
   },
-  refresh: {
+  toolbar: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) auto',
+    alignItems: 'end',
+    gap: '10px',
     marginBottom: '12px',
+  },
+  filterField: { display: 'grid', gap: '5px', minWidth: 0 },
+  filterLabel: {
+    color: 'var(--text-muted)',
+    fontSize: '12px',
+    fontWeight: 700,
+    paddingInline: '2px',
+  },
+  filterSelect: {
+    width: '100%',
+    minWidth: 0,
+    height: '42px',
+    padding: '0 12px',
+    border: '1px solid var(--border)',
+    borderRadius: '14px',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    fontSize: '15px',
+    fontWeight: 700,
+    outline: 'none',
+    direction: 'rtl',
+    boxSizing: 'border-box',
+  },
+  refresh: {
     minHeight: '42px',
     padding: '10px 16px',
     cursor: 'pointer',
@@ -156,7 +228,19 @@ const styles = {
   },
   details: { minWidth: 0, flex: 1 },
   actions: { display: 'flex', alignItems: 'center', gap: '10px' },
+  categoryLine: { display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' },
   category: { fontWeight: '600', fontSize: '16px' },
+  autoBadge: {
+    padding: '3px 7px',
+    borderRadius: '999px',
+    background: 'var(--surface-strong)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-muted)',
+    fontSize: '10px',
+    fontWeight: 800,
+    lineHeight: 1.2,
+    whiteSpace: 'nowrap',
+  },
   description: { fontSize: '13px', color: 'var(--text)', marginTop: '3px', lineHeight: 1.35 },
   meta: { fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' },
   income: { color: 'var(--income)', fontWeight: '600', whiteSpace: 'nowrap' },
@@ -187,6 +271,8 @@ const styles = {
     borderRadius: '18px',
     boxShadow: 'var(--shadow)',
   },
+  totalText: { display: 'grid', gap: '3px', minWidth: 0 },
   totalLabel: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: 600 },
+  totalCount: { fontSize: '12px', color: 'var(--text-muted)' },
   totalValue: { fontSize: '20px', whiteSpace: 'nowrap' },
 }

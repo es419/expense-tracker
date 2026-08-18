@@ -28,6 +28,12 @@ function cookieSecretKey() {
   return createHash('sha256').update(requiredEnv('AUTH_COOKIE_SECRET')).digest()
 }
 
+function automationSecretKey() {
+  return createHash('sha256')
+    .update(`${requiredEnv('AUTH_COOKIE_SECRET')}:expense-automation:v1`)
+    .digest()
+}
+
 export function getOrigin(request) {
   return new URL(request.url).origin
 }
@@ -87,9 +93,9 @@ export function clearCookie(name, request) {
   return serializeCookie(name, '', request, { maxAge: 0 })
 }
 
-function encryptCookiePayload(value) {
+function encryptPayload(value, key) {
   const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', cookieSecretKey(), iv)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
   const encrypted = Buffer.concat([
     cipher.update(value, 'utf8'),
     cipher.final(),
@@ -98,7 +104,7 @@ function encryptCookiePayload(value) {
   return Buffer.concat([iv, tag, encrypted]).toString('base64url')
 }
 
-function decryptCookiePayload(payload) {
+function decryptPayload(payload, key) {
   if (!payload) return null
 
   try {
@@ -108,7 +114,7 @@ function decryptCookiePayload(payload) {
     const iv = packed.subarray(0, 12)
     const tag = packed.subarray(12, 28)
     const encrypted = packed.subarray(28)
-    const decipher = createDecipheriv('aes-256-gcm', cookieSecretKey(), iv)
+    const decipher = createDecipheriv('aes-256-gcm', key, iv)
     decipher.setAuthTag(tag)
     const decrypted = Buffer.concat([
       decipher.update(encrypted),
@@ -118,6 +124,49 @@ function decryptCookiePayload(payload) {
   } catch {
     return null
   }
+}
+
+function encryptCookiePayload(value) {
+  return encryptPayload(value, cookieSecretKey())
+}
+
+function decryptCookiePayload(payload) {
+  return decryptPayload(payload, cookieSecretKey())
+}
+
+export function encryptAutomationToken({ refreshToken, spreadsheetId = null }) {
+  if (!refreshToken) throw new Error('Missing refresh token')
+
+  return encryptPayload(JSON.stringify({
+    v: 1,
+    kind: 'expense-automation',
+    refreshToken,
+    spreadsheetId: spreadsheetId || null,
+  }), automationSecretKey())
+}
+
+export function decryptAutomationToken(payload) {
+  const decrypted = decryptPayload(payload, automationSecretKey())
+  if (!decrypted) return null
+
+  try {
+    const parsed = JSON.parse(decrypted)
+    if (
+      parsed?.v === 1 &&
+      parsed?.kind === 'expense-automation' &&
+      typeof parsed.refreshToken === 'string' &&
+      parsed.refreshToken
+    ) {
+      return {
+        refreshToken: parsed.refreshToken,
+        spreadsheetId: typeof parsed.spreadsheetId === 'string' ? parsed.spreadsheetId : null,
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
 }
 
 // The old app stored only the refresh token in this encrypted cookie. The

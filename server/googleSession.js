@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import {
   REFRESH_COOKIE,
   clearCookie,
+  decryptAutomationToken,
   decryptSessionTokens,
   encryptSessionTokens,
   parseCookies,
@@ -112,6 +113,60 @@ export async function getGoogleSession(request, { forceRefresh = false } = {}) {
         spreadsheetId: spreadsheetId || baseState.spreadsheetId,
       })
     },
+  }
+}
+
+export async function getGoogleAutomationSession(token, { forceRefresh = false } = {}) {
+  const tokenState = decryptAutomationToken(token)
+  if (!tokenState?.refreshToken) {
+    const error = new AuthenticationError('Invalid automation token')
+    error.code = 'invalid_automation_token'
+    throw error
+  }
+
+  const refreshToken = tokenState.refreshToken
+  const key = sessionKey(refreshToken)
+  const cached = accessTokenCache.get(key)
+  let accessToken = null
+  let expiresAt = 0
+
+  if (!forceRefresh && cached?.accessToken && Date.now() < cached.expiresAt - 60_000) {
+    accessToken = cached.accessToken
+    expiresAt = cached.expiresAt
+  } else {
+    if (!refreshPromises.has(key)) {
+      refreshPromises.set(
+        key,
+        refreshAccessToken(refreshToken)
+          .then(tokens => {
+            const value = {
+              accessToken: tokens.access_token,
+              expiresAt: Date.now() + (Number(tokens.expires_in) || 3600) * 1000,
+            }
+            accessTokenCache.set(key, value)
+            return value
+          })
+          .finally(() => refreshPromises.delete(key))
+      )
+    }
+
+    try {
+      const value = await refreshPromises.get(key)
+      accessToken = value.accessToken
+      expiresAt = value.expiresAt
+    } catch (error) {
+      accessTokenCache.delete(key)
+      const authError = new AuthenticationError(error?.message || 'Google automation refresh failed')
+      authError.code = error?.code || 'automation_refresh_failed'
+      throw authError
+    }
+  }
+
+  return {
+    accessToken,
+    expiresAt,
+    cacheKey: key,
+    spreadsheetId: tokenState.spreadsheetId || null,
   }
 }
 
