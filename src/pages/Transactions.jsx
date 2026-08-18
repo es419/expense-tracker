@@ -64,11 +64,12 @@ export default function Transactions() {
   if (loading) return <div style={styles.center} />
   if (error) return <div style={styles.center}>שגיאה: {error}</div>
 
-  const categories = [...new Set(
-    transactions
+  const categories = [...new Set([
+    'מנהרות הכרמל',
+    ...transactions
       .map(t => String(t.category || '').trim())
-      .filter(Boolean)
-  )].sort((a, b) => a.localeCompare(b, 'he'))
+      .filter(Boolean),
+  ])].sort((a, b) => a.localeCompare(b, 'he'))
 
   const filteredTransactions = categoryFilter
     ? transactions.filter(t => t.category === categoryFilter)
