@@ -4,7 +4,7 @@ import { fetchTransactions, getCachedTransactions } from '../services/sheetsApi'
 import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Analytics() {
-  const { selectedMonthKey } = useSelectedMonth()
+  const { selectedMonthKey, refreshVersion } = useSelectedMonth()
   const cached = getCachedTransactions(selectedMonthKey)
   const [transactions, setTransactions] = useState(() => cached ?? [])
   const [loading, setLoading] = useState(() => !cached)
@@ -19,7 +19,7 @@ export default function Analytics() {
     fetchTransactions(selectedMonthKey)
       .then(data => setTransactions(data))
       .finally(() => setLoading(false))
-  }, [selectedMonthKey])
+  }, [selectedMonthKey, refreshVersion])
 
   const expenses = useMemo(
     () => transactions.filter(item => item.type === 'הוצאה'),

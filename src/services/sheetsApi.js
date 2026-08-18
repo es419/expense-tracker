@@ -140,6 +140,11 @@ export async function preloadFinancialData(monthKey = getMonthKey()) {
   return loadMonth(monthKey)
 }
 
+export async function refreshFinancialData(monthKey = getMonthKey()) {
+  clearAllFinancialViewCache()
+  return loadMonth(monthKey)
+}
+
 export async function fetchAvailableMonths() {
   if (availableMonthsCache?.length) return [...availableMonthsCache]
 

@@ -6,7 +6,7 @@ import { computeFinancialState, formatHebrewDate, getMonthKey, getMonthStart } f
 import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Summary() {
-  const { selectedMonthKey } = useSelectedMonth()
+  const { selectedMonthKey, refreshVersion } = useSelectedMonth()
   const cachedSummary = getCachedSummary(selectedMonthKey)
   const cachedTransactions = getCachedTransactions(selectedMonthKey)
   const [summary, setSummary] = useState(() => cachedSummary)
@@ -33,7 +33,7 @@ export default function Summary() {
     }
 
     load({ showLoader: !(monthSummary && monthTransactions) })
-  }, [selectedMonthKey])
+  }, [selectedMonthKey, refreshVersion])
 
   async function load({ showLoader = false } = {}) {
     try {

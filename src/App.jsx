@@ -8,7 +8,7 @@ import Analytics from './pages/Analytics'
 import BottomNav from './components/BottomNav'
 import ThemeMenu from './components/ThemeMenu'
 import { restoreSession } from './services/googleAuth'
-import { fetchAvailableMonths, preloadFinancialData } from './services/sheetsApi'
+import { fetchAvailableMonths, preloadFinancialData, refreshFinancialData } from './services/sheetsApi'
 import MonthFilter from './components/MonthFilter'
 import { MonthContext } from './context/MonthContext'
 import { getMonthKey } from './utils/billing'
@@ -80,6 +80,12 @@ function App() {
   const [systemTheme, setSystemTheme] = useState(getSystemTheme)
   const [selectedMonthKey, setSelectedMonthKey] = useState(getMonthKey)
   const [availableMonthKeys, setAvailableMonthKeys] = useState([getMonthKey()])
+  const [refreshVersion, setRefreshVersion] = useState(0)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMessage, setRefreshMessage] = useState('')
+  const appRef = useRef(null)
+  const refreshingRef = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -131,6 +137,111 @@ function App() {
     return () => media.removeEventListener?.('change', handleChange)
   }, [])
 
+  async function refreshAllData() {
+    if (!isSignedIn || refreshingRef.current) return
+
+    refreshingRef.current = true
+    setRefreshing(true)
+    setPullDistance(72)
+    setRefreshMessage('')
+
+    try {
+      const fresh = await refreshFinancialData(selectedMonthKey)
+      const keys = Array.isArray(fresh?.availableMonths) && fresh.availableMonths.length
+        ? fresh.availableMonths
+        : (availableMonthKeys.length ? availableMonthKeys : [selectedMonthKey])
+      setAvailableMonthKeys(keys)
+      setRefreshVersion(version => version + 1)
+      setRefreshMessage('הנתונים עודכנו')
+    } catch {
+      setRefreshMessage('הרענון נכשל')
+    } finally {
+      window.setTimeout(() => {
+        refreshingRef.current = false
+        setRefreshing(false)
+        setPullDistance(0)
+        window.setTimeout(() => setRefreshMessage(''), 650)
+      }, 320)
+    }
+  }
+
+  useEffect(() => {
+    const root = appRef.current
+    if (!root || !isSignedIn) return
+
+    let startX = 0
+    let startY = 0
+    let tracking = false
+    let pulling = false
+    let currentDistance = 0
+
+    const resetGesture = () => {
+      tracking = false
+      pulling = false
+      currentDistance = 0
+    }
+
+    const handleTouchStart = event => {
+      if (refreshingRef.current || event.touches.length !== 1 || window.scrollY > 1) return
+      const touch = event.touches[0]
+      startX = touch.clientX
+      startY = touch.clientY
+      tracking = true
+      pulling = false
+      currentDistance = 0
+    }
+
+    const handleTouchMove = event => {
+      if (!tracking || event.touches.length !== 1) return
+      const touch = event.touches[0]
+      const dx = touch.clientX - startX
+      const dy = touch.clientY - startY
+
+      if (!pulling) {
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          resetGesture()
+          return
+        }
+        if (dy <= 6 || Math.abs(dy) <= Math.abs(dx)) return
+        if (window.scrollY > 1) {
+          resetGesture()
+          return
+        }
+        pulling = true
+      }
+
+      if (dy <= 0) {
+        resetGesture()
+        setPullDistance(0)
+        return
+      }
+
+      event.preventDefault()
+      currentDistance = Math.min(104, dy * 0.55)
+      setPullDistance(currentDistance)
+    }
+
+    const finishPull = () => {
+      if (!tracking && !pulling) return
+      const shouldRefresh = pulling && currentDistance >= 72
+      resetGesture()
+      if (shouldRefresh) refreshAllData()
+      else setPullDistance(0)
+    }
+
+    root.addEventListener('touchstart', handleTouchStart, { passive: true })
+    root.addEventListener('touchmove', handleTouchMove, { passive: false })
+    root.addEventListener('touchend', finishPull, { passive: true })
+    root.addEventListener('touchcancel', finishPull, { passive: true })
+
+    return () => {
+      root.removeEventListener('touchstart', handleTouchStart)
+      root.removeEventListener('touchmove', handleTouchMove)
+      root.removeEventListener('touchend', finishPull)
+      root.removeEventListener('touchcancel', finishPull)
+    }
+  }, [isSignedIn, selectedMonthKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const theme = themePreference === 'system' ? systemTheme : themePreference
 
   useEffect(() => {
@@ -143,17 +254,9 @@ function App() {
 
   if (isSignedIn === null) {
     return (
-      <div className="sign-in-shell">
-        <ThemeMenu value={themePreference} onChange={setThemePreference} />
-        <div style={{
-          minHeight: '100vh',
-          display: 'grid',
-          placeItems: 'center',
-          background: 'var(--bg)',
-          color: 'var(--text-muted)',
-        }}>
-
-        </div>
+      <div className="appSplash" aria-label="טוען את ניהול ההוצאות">
+        <img className="appSplashLogo" src="/icon-192.png" alt="" />
+        <div className="appSplashLoader" aria-hidden="true" />
       </div>
     )
   }
@@ -173,8 +276,21 @@ function App() {
         selectedMonthKey,
         setSelectedMonthKey,
         availableMonthKeys,
+        refreshVersion,
       }}>
-        <div className="app">
+        <div className="app" ref={appRef}>
+          <div
+            className={`pullRefreshIndicator ${refreshing ? 'refreshing' : ''} ${pullDistance >= 72 ? 'ready' : ''}`}
+            style={{
+              transform: `translate(-50%, ${refreshing ? 0 : Math.min(0, -58 + pullDistance * 0.82)}px)`,
+              opacity: refreshing || refreshMessage ? 1 : Math.min(1, pullDistance / 72),
+              '--pull-rotation': Math.round(Math.min(1, pullDistance / 72) * 220),
+            }}
+            aria-live="polite"
+          >
+            <span className="pullRefreshGlyph">↻</span>
+            <span>{refreshMessage || (refreshing ? 'מרענן...' : pullDistance >= 72 ? 'שחרר לרענון' : 'משוך לרענון')}</span>
+          </div>
           <ThemeMenu value={themePreference} onChange={setThemePreference} />
           <PageHeader />
           <AnimatedRoutes />

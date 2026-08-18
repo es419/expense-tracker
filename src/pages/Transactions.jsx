@@ -4,7 +4,7 @@ import { formatHebrewDate, getCreditChargeDate, parseDate } from '../utils/billi
 import { useSelectedMonth } from '../context/MonthContext'
 
 export default function Transactions() {
-  const { selectedMonthKey } = useSelectedMonth()
+  const { selectedMonthKey, refreshVersion } = useSelectedMonth()
   const cached = getCachedTransactions(selectedMonthKey)
   const [transactions, setTransactions] = useState(() => cached ? [...cached].reverse() : [])
   const [loading, setLoading] = useState(() => !cached)
@@ -18,7 +18,7 @@ export default function Transactions() {
       setLoading(false)
     }
     load({ showLoader: !monthCached })
-  }, [selectedMonthKey])
+  }, [selectedMonthKey, refreshVersion])
 
   async function load({ showLoader = false } = {}) {
     try {
