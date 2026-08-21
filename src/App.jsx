@@ -5,6 +5,7 @@ import Transactions from './pages/Transactions'
 import AddTransaction from './pages/AddTransaction'
 import Summary from './pages/Summary'
 import Analytics from './pages/Analytics'
+import Savings from './pages/Savings'
 import BottomNav from './components/BottomNav'
 import ThemeMenu from './components/ThemeMenu'
 import { restoreSession } from './services/googleAuth'
@@ -26,7 +27,7 @@ function getSystemTheme() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-const ROUTE_ORDER = ['/transactions', '/add', '/summary', '/analytics']
+const ROUTE_ORDER = ['/transactions', '/add', '/summary', '/analytics', '/savings']
 
 
 function PageHeader() {
@@ -36,13 +37,14 @@ function PageHeader() {
     '/add': 'הוספה',
     '/summary': 'סיכום',
     '/analytics': 'ניתוח',
+    '/savings': 'חסכונות, קרנות ופנסיה',
   }
   const title = titleByPath[location.pathname] || 'הוספה'
 
   return (
     <header className="pageHeader">
       <h1 className="pageHeaderTitle">{title}</h1>
-      <MonthFilter />
+      {location.pathname !== '/savings' && <MonthFilter />}
     </header>
   )
 }
@@ -68,6 +70,7 @@ function AnimatedRoutes() {
         <Route path="/add" element={<AddTransaction />} />
         <Route path="/summary" element={<Summary />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/savings" element={<Savings />} />
         <Route path="*" element={<Navigate to="/add" replace />} />
       </Routes>
     </div>

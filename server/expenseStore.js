@@ -3,6 +3,7 @@ import {
   TRANSACTION_COLUMNS,
   TRANSACTION_HEADERS,
   CATEGORIES,
+  DEFAULT_BUDGETS,
 } from '../src/config/sheetsConfig.js'
 import {
   computeFinancialState,
@@ -17,6 +18,11 @@ const APP_SPREADSHEET_NAME = 'ניהול הוצאות'
 const APP_CONFIG_NAME = 'expense-tracker-config.json'
 const CUSTOM_CATEGORIES_SHEET = '_קטגוריות'
 const CUSTOM_CATEGORY_HEADER = 'קטגוריה'
+const CATEGORY_SCHEMA_MARKER = 'all_categories_v2'
+const BUDGETS_SHEET = '_תקציבים'
+const BUDGET_INIT_MARKER = '__INIT__'
+const SAVINGS_SHEET = '_חסכונות'
+const SAVINGS_HEADERS = ['מזהה', 'שם', 'סוג', 'יתרה', 'הפקדה חודשית', 'תשואה שנתית משוערת', 'דמי ניהול', 'עודכן']
 
 // Server-memory cache only: IDs and sheet metadata, never financial values.
 // It is keyed by the encrypted-session-derived cache key so sessions never
@@ -637,8 +643,10 @@ async function ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spre
   const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
   let metadata = context.metadata
   let sheet = findSheet(metadata, CUSTOM_CATEGORIES_SHEET)
+  let created = false
 
   if (!sheet) {
+    created = true
     await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
       method: 'POST',
       body: JSON.stringify({
@@ -648,19 +656,49 @@ async function ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spre
       }),
     })
 
+    metadata = await getMetadata(context.googleRequest, context.spreadsheetId)
+    syncMetadataToSession(cacheKey, metadata)
+    sheet = findSheet(metadata, CUSTOM_CATEGORIES_SHEET)
+  }
+
+  const headerRange = a1(CUSTOM_CATEGORIES_SHEET, 'A1:B1')
+  const headerData = created
+    ? { values: [] }
+    : await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(headerRange)}`)
+  const marker = headerData.values?.[0]?.[1] ?? ''
+
+  if (created || marker !== CATEGORY_SCHEMA_MARKER) {
+    const rows = created ? [] : await readCustomCategoryRows({ ...context, metadata, sheet })
+    const seen = new Set()
+    const migrated = []
+
+    for (const name of [...CATEGORIES, ...rows.map(item => item.name)]) {
+      const clean = normalizeCustomCategory(name)
+      const key = clean.toLocaleLowerCase('he')
+      if (!clean || seen.has(key)) continue
+      seen.add(key)
+      migrated.push(clean)
+    }
+
+    const clearRange = a1(CUSTOM_CATEGORIES_SHEET, 'A1:B')
+    await context.googleRequest(
+      `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(clearRange)}:clear`,
+      { method: 'POST', body: JSON.stringify({}) }
+    )
+
     await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values:batchUpdate`, {
       method: 'POST',
       body: JSON.stringify({
         valueInputOption: 'USER_ENTERED',
-        data: [
-          { range: a1(CUSTOM_CATEGORIES_SHEET, 'A1'), values: [[CUSTOM_CATEGORY_HEADER]] },
-        ],
+        data: [{
+          range: a1(CUSTOM_CATEGORIES_SHEET, `A1:B${Math.max(1, migrated.length + 1)}`),
+          values: [
+            [CUSTOM_CATEGORY_HEADER, CATEGORY_SCHEMA_MARKER],
+            ...migrated.map(name => [name, '']),
+          ],
+        }],
       }),
     })
-
-    metadata = await getMetadata(context.googleRequest, context.spreadsheetId)
-    syncMetadataToSession(cacheKey, metadata)
-    sheet = findSheet(metadata, CUSTOM_CATEGORIES_SHEET)
   }
 
   return { ...context, metadata, sheet }
@@ -702,14 +740,10 @@ export async function addCustomCategory(accessToken, cacheKey, monthKey, rawCate
   }
 
   const lower = category.toLocaleLowerCase('he')
-  if (CATEGORIES.some(item => item.toLocaleLowerCase('he') === lower)) {
-    return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
-  }
-
   const context = await ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
   const existing = await readCustomCategoryRows(context)
   if (existing.some(item => item.name.toLocaleLowerCase('he') === lower)) {
-    return existing.map(item => item.name)
+    return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
   }
 
   const range = a1(CUSTOM_CATEGORIES_SHEET, 'A2:A')
@@ -721,7 +755,7 @@ export async function addCustomCategory(accessToken, cacheKey, monthKey, rawCate
     }
   )
 
-  return [...existing.map(item => item.name), category]
+  return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
 }
 
 export async function deleteCustomCategory(accessToken, cacheKey, monthKey, rawCategory, spreadsheetHint = null) {
@@ -730,16 +764,16 @@ export async function deleteCustomCategory(accessToken, cacheKey, monthKey, rawC
 
   const context = await ensureCustomCategoriesSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
   const rows = await readCustomCategoryRows(context)
-  const target = rows.find(item => item.name.toLocaleLowerCase('he') === category.toLocaleLowerCase('he'))
-  if (!target) return rows.map(item => item.name)
-
-  if (!context.sheet) throw new Error('Custom categories sheet not found')
+  const targets = rows.filter(item => item.name.toLocaleLowerCase('he') === category.toLocaleLowerCase('he'))
+  if (!targets.length) return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
+  if (!context.sheet) throw new Error('Categories sheet not found')
 
   await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
     method: 'POST',
     body: JSON.stringify({
-      requests: [
-        {
+      requests: [...targets]
+        .sort((a, b) => b.rowIndex - a.rowIndex)
+        .map(target => ({
           deleteDimension: {
             range: {
               sheetId: context.sheet.properties.sheetId,
@@ -748,12 +782,322 @@ export async function deleteCustomCategory(accessToken, cacheKey, monthKey, rawC
               endIndex: target.rowIndex,
             },
           },
-        },
-      ],
+        })),
     }),
   })
 
-  return rows.filter(item => item.rowIndex !== target.rowIndex).map(item => item.name)
+  return listCustomCategories(accessToken, cacheKey, monthKey, spreadsheetHint)
+}
+
+function normalizeBudgetName(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, 40)
+}
+
+async function ensureBudgetsSheet(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  let metadata = context.metadata
+  let sheet = findSheet(metadata, BUDGETS_SHEET)
+
+  if (!sheet) {
+    await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: BUDGETS_SHEET, hidden: true } } }],
+      }),
+    })
+    await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: [{ range: a1(BUDGETS_SHEET, 'A1:C1'), values: [['חודש', 'תקציב', 'סכום']] }],
+      }),
+    })
+    metadata = await getMetadata(context.googleRequest, context.spreadsheetId)
+    syncMetadataToSession(cacheKey, metadata)
+    sheet = findSheet(metadata, BUDGETS_SHEET)
+  }
+
+  return { ...context, metadata, sheet }
+}
+
+async function readBudgetRows(context) {
+  const range = a1(BUDGETS_SHEET, 'A2:C')
+  const data = await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}`
+  )
+  return (data.values ?? []).map((row, index) => ({
+    monthKey: String(row?.[0] ?? ''),
+    name: normalizeBudgetName(row?.[1]),
+    amount: Number(row?.[2]) || 0,
+    rowIndex: index + 2,
+  })).filter(item => item.monthKey && item.name)
+}
+
+async function ensureBudgetRowsForMonth(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureBudgetsSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const rows = await readBudgetRows(context)
+  if (rows.some(item => item.monthKey === monthKey && item.name === BUDGET_INIT_MARKER)) {
+    return { context, rows }
+  }
+
+  const initializedMonths = [...new Set(
+    rows.filter(item => item.name === BUDGET_INIT_MARKER).map(item => item.monthKey)
+  )].sort()
+  const maxInitialized = initializedMonths.at(-1) ?? null
+  let seed = []
+
+  if (maxInitialized && monthKey > maxInitialized) {
+    seed = rows
+      .filter(item => item.monthKey === maxInitialized && item.name !== BUDGET_INIT_MARKER)
+      .map(item => ({ name: item.name, amount: item.amount }))
+  } else {
+    const raw = await readMonthDataRaw(context.googleRequest, context.spreadsheetId, monthKey)
+    const legacyAmounts = {
+      הכרחי: Number(raw.summary?.essential) || 0,
+      מותרות: Number(raw.summary?.discretionary) || 0,
+    }
+    seed = DEFAULT_BUDGETS.map(name => ({ name, amount: legacyAmounts[name] || 0 }))
+  }
+
+  const appendRange = a1(BUDGETS_SHEET, 'A2:C')
+  await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(appendRange)}:append?valueInputOption=USER_ENTERED`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        values: [
+          [monthKey, BUDGET_INIT_MARKER, ''],
+          ...seed.map(item => [monthKey, item.name, item.amount]),
+        ],
+      }),
+    }
+  )
+
+  return { context, rows: await readBudgetRows(context) }
+}
+
+export async function listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const { rows } = await ensureBudgetRowsForMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const seen = new Set()
+  const result = []
+  for (const item of rows) {
+    if (item.monthKey !== monthKey || item.name === BUDGET_INIT_MARKER) continue
+    const key = item.name.toLocaleLowerCase('he')
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push({ name: item.name, amount: item.amount })
+  }
+  return result
+}
+
+export async function addBudget(accessToken, cacheKey, monthKey, rawBudget, spreadsheetHint = null) {
+  const name = normalizeBudgetName(rawBudget)
+  if (!name) {
+    const error = new Error('Budget name is required')
+    error.status = 400
+    throw error
+  }
+
+  const { context, rows } = await ensureBudgetRowsForMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const lower = name.toLocaleLowerCase('he')
+  if (rows.some(item => item.monthKey === monthKey && item.name !== BUDGET_INIT_MARKER && item.name.toLocaleLowerCase('he') === lower)) {
+    return listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint)
+  }
+
+  const range = a1(BUDGETS_SHEET, 'A2:C')
+  await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
+    { method: 'POST', body: JSON.stringify({ values: [[monthKey, name, 0]] }) }
+  )
+  return listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint)
+}
+
+export async function deleteBudget(accessToken, cacheKey, monthKey, rawBudget, spreadsheetHint = null) {
+  const name = normalizeBudgetName(rawBudget)
+  if (!name) return listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint)
+
+  const { context, rows } = await ensureBudgetRowsForMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const targets = rows.filter(item =>
+    item.monthKey === monthKey &&
+    item.name !== BUDGET_INIT_MARKER &&
+    item.name.toLocaleLowerCase('he') === name.toLocaleLowerCase('he')
+  )
+  if (!targets.length) return listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint)
+  if (!context.sheet) throw new Error('Budgets sheet not found')
+
+  await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [...targets]
+        .sort((a, b) => b.rowIndex - a.rowIndex)
+        .map(target => ({
+          deleteDimension: {
+            range: {
+              sheetId: context.sheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: target.rowIndex - 1,
+              endIndex: target.rowIndex,
+            },
+          },
+        })),
+    }),
+  })
+  return listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint)
+}
+
+export async function updateBudgetAmount(accessToken, cacheKey, monthKey, rawBudget, rawAmount, spreadsheetHint = null) {
+  const name = normalizeBudgetName(rawBudget)
+  const amount = Math.max(Number(rawAmount) || 0, 0)
+  const { context, rows } = await ensureBudgetRowsForMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const target = rows.find(item =>
+    item.monthKey === monthKey &&
+    item.name !== BUDGET_INIT_MARKER &&
+    item.name.toLocaleLowerCase('he') === name.toLocaleLowerCase('he')
+  )
+  if (!target) {
+    const error = new Error('Budget not found')
+    error.status = 404
+    throw error
+  }
+
+  const range = a1(BUDGETS_SHEET, `C${target.rowIndex}`)
+  await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+    { method: 'PUT', body: JSON.stringify({ values: [[amount]] }) }
+  )
+  return listBudgets(accessToken, cacheKey, monthKey, spreadsheetHint)
+}
+
+function normalizeSavingText(value, maxLength = 60) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, maxLength)
+}
+
+async function ensureSavingsSheet(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureCurrentMonth(accessToken, cacheKey, monthKey, spreadsheetHint)
+  let metadata = context.metadata
+  let sheet = findSheet(metadata, SAVINGS_SHEET)
+
+  if (!sheet) {
+    await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: SAVINGS_SHEET, hidden: true } } }],
+      }),
+    })
+    await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values:batchUpdate`, {
+      method: 'POST',
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: [{ range: a1(SAVINGS_SHEET, 'A1:H1'), values: [SAVINGS_HEADERS] }],
+      }),
+    })
+    metadata = await getMetadata(context.googleRequest, context.spreadsheetId)
+    syncMetadataToSession(cacheKey, metadata)
+    sheet = findSheet(metadata, SAVINGS_SHEET)
+  }
+
+  return { ...context, metadata, sheet }
+}
+
+async function readSavingRows(context) {
+  const range = a1(SAVINGS_SHEET, 'A2:H')
+  const data = await context.googleRequest(
+    `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}`
+  )
+  return (data.values ?? []).map((row, index) => ({
+    id: normalizeSavingText(row?.[0], 80),
+    name: normalizeSavingText(row?.[1]),
+    type: normalizeSavingText(row?.[2], 40),
+    balance: Number(row?.[3]) || 0,
+    monthlyDeposit: Number(row?.[4]) || 0,
+    annualReturn: Number(row?.[5]) || 0,
+    managementFee: Number(row?.[6]) || 0,
+    updatedAt: String(row?.[7] ?? ''),
+    rowIndex: index + 2,
+  })).filter(item => item.id && item.name)
+}
+
+export async function listSavings(accessToken, cacheKey, monthKey, spreadsheetHint = null) {
+  const context = await ensureSavingsSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const rows = await readSavingRows(context)
+  return rows.map(({ rowIndex, ...item }) => item)
+}
+
+export async function upsertSaving(accessToken, cacheKey, monthKey, rawSaving, spreadsheetHint = null) {
+  const id = normalizeSavingText(rawSaving?.id, 80)
+  const name = normalizeSavingText(rawSaving?.name)
+  if (!id || !name) {
+    const error = new Error('Saving id and name are required')
+    error.status = 400
+    throw error
+  }
+
+  const saving = {
+    id,
+    name,
+    type: normalizeSavingText(rawSaving?.type, 40) || 'אחר',
+    balance: Math.max(Number(rawSaving?.balance) || 0, 0),
+    monthlyDeposit: Math.max(Number(rawSaving?.monthlyDeposit) || 0, 0),
+    annualReturn: Math.max(-99.9, Math.min(Number(rawSaving?.annualReturn) || 0, 1000)),
+    managementFee: Math.max(Number(rawSaving?.managementFee) || 0, 0),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const context = await ensureSavingsSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const rows = await readSavingRows(context)
+  const existing = rows.find(item => item.id === id)
+  const values = [[
+    saving.id,
+    saving.name,
+    saving.type,
+    saving.balance,
+    saving.monthlyDeposit,
+    saving.annualReturn,
+    saving.managementFee,
+    saving.updatedAt,
+  ]]
+
+  if (existing) {
+    const range = a1(SAVINGS_SHEET, `A${existing.rowIndex}:H${existing.rowIndex}`)
+    await context.googleRequest(
+      `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+      { method: 'PUT', body: JSON.stringify({ values }) }
+    )
+  } else {
+    const range = a1(SAVINGS_SHEET, 'A2:H')
+    await context.googleRequest(
+      `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
+      { method: 'POST', body: JSON.stringify({ values }) }
+    )
+  }
+
+  return listSavings(accessToken, cacheKey, monthKey, spreadsheetHint)
+}
+
+export async function deleteSaving(accessToken, cacheKey, monthKey, rawId, spreadsheetHint = null) {
+  const id = normalizeSavingText(rawId, 80)
+  const context = await ensureSavingsSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
+  const rows = await readSavingRows(context)
+  const target = rows.find(item => item.id === id)
+  if (!target) return rows.map(({ rowIndex, ...item }) => item)
+  if (!context.sheet) throw new Error('Savings sheet not found')
+
+  await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId: context.sheet.properties.sheetId,
+            dimension: 'ROWS',
+            startIndex: target.rowIndex - 1,
+            endIndex: target.rowIndex,
+          },
+        },
+      }],
+    }),
+  })
+  return listSavings(accessToken, cacheKey, monthKey, spreadsheetHint)
 }
 
 export async function ensureMonthOnly(accessToken, cacheKey, monthKey, spreadsheetHint = null) {

@@ -86,6 +86,7 @@ export function computeFinancialState(summary, transactions, referenceDate = new
   let credit = 0
   let essentialSpent = 0
   let discretionarySpent = 0
+  const budgetSpent = {}
   let nextCreditCharge = null
 
   // Existing card balance at the start of a month remains outstanding until
@@ -121,12 +122,12 @@ export function computeFinancialState(summary, transactions, referenceDate = new
       continue
     }
 
-    if (t.budget === 'הכרחי') {
-      essentialSpent += amount
-    } else if (t.budget === 'מותרות') {
-      discretionarySpent += amount
+    if (t.budget) {
+      budgetSpent[t.budget] = (budgetSpent[t.budget] || 0) + amount
     }
-    // Empty/unknown budget is intentionally excluded from both budget totals.
+    if (t.budget === 'הכרחי') essentialSpent += amount
+    if (t.budget === 'מותרות') discretionarySpent += amount
+    // Empty budget is intentionally excluded from budget totals.
 
     if (t.paymentMethod === 'אשראי') {
       const chargeDate = parseDate(t.chargeDate) ?? getCreditChargeDate(t.date)
@@ -146,5 +147,5 @@ export function computeFinancialState(summary, transactions, referenceDate = new
     }
   }
 
-  return { checking, wallet, credit, essentialSpent, discretionarySpent, nextCreditCharge }
+  return { checking, wallet, credit, essentialSpent, discretionarySpent, budgetSpent, nextCreditCharge }
 }

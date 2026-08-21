@@ -26,7 +26,8 @@ export const TRANSACTION_HEADERS = [
 ]
 
 export const TRANSACTION_TYPES = ['הוצאה', 'הכנסה', 'העברה לארנק']
-export const BUDGET_TYPES = ['הכרחי', 'מותרות']
+export const DEFAULT_BUDGETS = ['הכרחי', 'מותרות']
+export const BUDGET_TYPES = DEFAULT_BUDGETS
 export const PAYMENT_METHODS = ['אשראי', 'עו״ש', 'מזומן']
 export const CATEGORIES = [
   'אוכל',

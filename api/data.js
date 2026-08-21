@@ -4,17 +4,24 @@ import {
   getGoogleSession,
 } from '../server/googleSession.js'
 import {
+  addBudget,
   addCustomCategory,
   appendTransaction,
   clearExpenseRuntimeCache,
+  deleteBudget,
   deleteCustomCategory,
+  deleteSaving,
   deleteTransaction,
   ensureMonthOnly,
   getExpenseSpreadsheetId,
   loadCurrentMonth,
   listAvailableMonths,
+  listBudgets,
+  listSavings,
   listCustomCategories,
+  updateBudgetAmount,
   updateSummaryCells,
+  upsertSaving,
   updateTransaction,
 } from '../server/expenseStore.js'
 
@@ -47,6 +54,20 @@ async function executeAction(session, body) {
       return addCustomCategory(session.accessToken, session.cacheKey, monthKey, body.category, spreadsheetHint)
     case 'deleteCustomCategory':
       return deleteCustomCategory(session.accessToken, session.cacheKey, monthKey, body.category, spreadsheetHint)
+    case 'listBudgets':
+      return listBudgets(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
+    case 'addBudget':
+      return addBudget(session.accessToken, session.cacheKey, monthKey, body.budget, spreadsheetHint)
+    case 'deleteBudget':
+      return deleteBudget(session.accessToken, session.cacheKey, monthKey, body.budget, spreadsheetHint)
+    case 'updateBudgetAmount':
+      return updateBudgetAmount(session.accessToken, session.cacheKey, monthKey, body.budget, body.amount, spreadsheetHint)
+    case 'listSavings':
+      return listSavings(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
+    case 'upsertSaving':
+      return upsertSaving(session.accessToken, session.cacheKey, monthKey, body.saving, spreadsheetHint)
+    case 'deleteSaving':
+      return deleteSaving(session.accessToken, session.cacheKey, monthKey, body.id, spreadsheetHint)
     case 'appendTransaction':
       return appendTransaction(session.accessToken, session.cacheKey, monthKey, body.transaction, spreadsheetHint)
     case 'updateTransaction':

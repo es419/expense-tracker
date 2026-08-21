@@ -168,6 +168,45 @@ export async function deleteCustomCategory(category, monthKey = getMonthKey()) {
   return Array.isArray(result) ? result : []
 }
 
+export const fetchCategories = fetchCustomCategories
+export const addCategory = addCustomCategory
+export const deleteCategory = deleteCustomCategory
+
+export async function fetchBudgets(monthKey = getMonthKey()) {
+  const result = await apiRequest('listBudgets', {}, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function addBudget(budget, monthKey = getMonthKey()) {
+  const result = await apiRequest('addBudget', { budget }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function deleteBudget(budget, monthKey = getMonthKey()) {
+  const result = await apiRequest('deleteBudget', { budget }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function updateBudgetAmount(budget, amount, monthKey = getMonthKey()) {
+  const result = await apiRequest('updateBudgetAmount', { budget, amount }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function fetchSavings(monthKey = getMonthKey()) {
+  const result = await apiRequest('listSavings', {}, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function upsertSaving(saving, monthKey = getMonthKey()) {
+  const result = await apiRequest('upsertSaving', { saving }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
+export async function deleteSaving(id, monthKey = getMonthKey()) {
+  const result = await apiRequest('deleteSaving', { id }, monthKey)
+  return Array.isArray(result) ? result : []
+}
+
 export async function appendTransaction(transaction, monthKey = getMonthKey()) {
   const result = await apiRequest('appendTransaction', { transaction }, monthKey)
   const rowIndex = rowIndexFromAppendResult(result)
