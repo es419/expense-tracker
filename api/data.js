@@ -69,13 +69,10 @@ async function executeAction(session, body) {
       return updateBudgetAmount(session.accessToken, session.cacheKey, monthKey, body.budget, body.amount, spreadsheetHint)
     case 'listSavings':
       return listSavings(session.accessToken, session.cacheKey, monthKey, spreadsheetHint)
-<<<<<<< HEAD
-=======
     case 'attendanceGross':
       return getAttendanceGross(session.accessToken, session.cacheKey, monthKey)
     case 'saveAttendanceSheetLink':
       return saveAttendanceSpreadsheetLink(session.accessToken, session.cacheKey, monthKey, body.spreadsheet)
->>>>>>> c98eac7 (connect live salary rates to savings tracking)
     case 'upsertSaving':
       return upsertSaving(session.accessToken, session.cacheKey, monthKey, body.saving, spreadsheetHint)
     case 'deleteSaving':
