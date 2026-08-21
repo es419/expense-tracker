@@ -143,11 +143,8 @@ export default function Savings() {
     }), { balance: 0, monthlyDeposit: 0, projected: 0 })
   }, [items, attendance])
 
-  const linkedCounts = useMemo(() => {
-    return items.reduce((acc, item) => {
-      if (item.salaryLinked && SALARY_TYPES.has(item.type)) acc[item.type] = (acc[item.type] || 0) + 1
-      return acc
-    }, {})
+  const linkedPensionCount = useMemo(() => {
+    return items.filter(item => item.salaryLinked && item.type === 'פנסיה').length
   }, [items])
 
   function openNew() {
@@ -269,9 +266,9 @@ export default function Savings() {
           היתרה שאתה מזין היא הנתון האמיתי. ״תשואה שנתית״ היא רק הנחת תחזית וניתן לשנות אותה בכל רגע — גם לערך שלילי.
         </div>
 
-        {(linkedCounts['פנסיה'] > 1 || linkedCounts['קרן השתלמות'] > 1) && (
+        {linkedPensionCount > 1 && (
           <div style={styles.warning}>
-            שים לב: יותר מחיסכון אחד מאותו סוג מסומן כמקבל הפקדה מהשכר. זה אפשרי, אבל כל אחד מהם יקבל כרגע את מלוא האחוז שמוגדר בנוכחות.
+            שים לב: יותר מפנסיה אחת מסומנת כמקבלת הפקדה מהשכר. כל אחת מהן תקבל את מלוא האחוז שמוגדר בנוכחות.
           </div>
         )}
 
@@ -348,7 +345,11 @@ export default function Savings() {
                   />
                   <span>
                     <strong style={styles.toggleTitle}>מקבלת הפקדה מהשכר</strong>
-                    <small style={styles.toggleText}>הברוטו והאחוזים נמשכים מחדש מאפליקציית הנוכחות.</small>
+                    <small style={styles.toggleText}>
+                      {form.type === 'קרן השתלמות'
+                        ? 'הברוטו והאחוזים נמשכים מאפליקציית הנוכחות. סימון הקרן הזו יבטל אוטומטית את ההפקדה מהשכר בכל קרן השתלמות אחרת.'
+                        : 'הברוטו והאחוזים נמשכים מחדש מאפליקציית הנוכחות.'}
+                    </small>
                   </span>
                 </label>
 

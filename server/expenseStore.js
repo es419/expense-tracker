@@ -1059,6 +1059,34 @@ export async function upsertSaving(accessToken, cacheKey, monthKey, rawSaving, s
 
   const context = await ensureSavingsSheet(accessToken, cacheKey, monthKey, spreadsheetHint)
   const rows = await readSavingRows(context)
+
+  // Only one training fund can receive the salary-linked contribution at a time.
+  // When a different training fund is activated, automatically deactivate any
+  // previously active one so the same salary contribution is never counted twice.
+  if (saving.type === 'קרן השתלמות' && saving.salaryLinked) {
+    const otherLinkedTrainingFunds = rows.filter(item =>
+      item.id !== saving.id &&
+      item.type === 'קרן השתלמות' &&
+      item.salaryLinked
+    )
+
+    if (otherLinkedTrainingFunds.length) {
+      await context.googleRequest(
+        `${SHEETS_BASE}/${context.spreadsheetId}/values:batchUpdate`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            valueInputOption: 'USER_ENTERED',
+            data: otherLinkedTrainingFunds.map(item => ({
+              range: a1(SAVINGS_SHEET, `I${item.rowIndex}`),
+              values: [['false']],
+            })),
+          }),
+        }
+      )
+    }
+  }
+
   const existing = rows.find(item => item.id === id)
   const values = [[
     saving.id,
