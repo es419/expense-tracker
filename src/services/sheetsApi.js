@@ -197,6 +197,17 @@ export async function fetchSavings(monthKey = getMonthKey()) {
   return Array.isArray(result) ? result : []
 }
 
+<<<<<<< HEAD
+=======
+export async function fetchAttendanceContributionData(monthKey = getMonthKey()) {
+  return apiRequest('attendanceGross', {}, monthKey)
+}
+
+export async function saveAttendanceSpreadsheetLink(spreadsheet, monthKey = getMonthKey()) {
+  return apiRequest('saveAttendanceSheetLink', { spreadsheet }, monthKey)
+}
+
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
 export async function upsertSaving(saving, monthKey = getMonthKey()) {
   const result = await apiRequest('upsertSaving', { saving }, monthKey)
   return Array.isArray(result) ? result : []

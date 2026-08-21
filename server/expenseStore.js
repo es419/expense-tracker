@@ -22,7 +22,11 @@ const CATEGORY_SCHEMA_MARKER = 'all_categories_v2'
 const BUDGETS_SHEET = '_תקציבים'
 const BUDGET_INIT_MARKER = '__INIT__'
 const SAVINGS_SHEET = '_חסכונות'
+<<<<<<< HEAD
 const SAVINGS_HEADERS = ['מזהה', 'שם', 'סוג', 'יתרה', 'הפקדה חודשית', 'תשואה שנתית משוערת', 'דמי ניהול', 'עודכן']
+=======
+const SAVINGS_HEADERS = ['מזהה', 'שם', 'סוג', 'יתרה', 'הפקדה חודשית', 'תשואה שנתית משוערת', 'דמי ניהול', 'עודכן', 'מקושר לשכר']
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
 
 // Server-memory cache only: IDs and sheet metadata, never financial values.
 // It is keyed by the encrypted-session-derived cache key so sessions never
@@ -988,19 +992,42 @@ async function ensureSavingsSheet(accessToken, cacheKey, monthKey, spreadsheetHi
       method: 'POST',
       body: JSON.stringify({
         valueInputOption: 'USER_ENTERED',
+<<<<<<< HEAD
         data: [{ range: a1(SAVINGS_SHEET, 'A1:H1'), values: [SAVINGS_HEADERS] }],
+=======
+        data: [{ range: a1(SAVINGS_SHEET, 'A1:I1'), values: [SAVINGS_HEADERS] }],
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
       }),
     })
     metadata = await getMetadata(context.googleRequest, context.spreadsheetId)
     syncMetadataToSession(cacheKey, metadata)
     sheet = findSheet(metadata, SAVINGS_SHEET)
+<<<<<<< HEAD
+=======
+  } else {
+    const headerRange = a1(SAVINGS_SHEET, 'A1:I1')
+    const headerData = await context.googleRequest(
+      `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(headerRange)}`
+    )
+    const currentHeader = headerData.values?.[0] || []
+    if (currentHeader[8] !== SAVINGS_HEADERS[8]) {
+      await context.googleRequest(`${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(headerRange)}?valueInputOption=RAW`, {
+        method: 'PUT',
+        body: JSON.stringify({ values: [SAVINGS_HEADERS] }),
+      })
+    }
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
   }
 
   return { ...context, metadata, sheet }
 }
 
 async function readSavingRows(context) {
+<<<<<<< HEAD
   const range = a1(SAVINGS_SHEET, 'A2:H')
+=======
+  const range = a1(SAVINGS_SHEET, 'A2:I')
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
   const data = await context.googleRequest(
     `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}`
   )
@@ -1013,6 +1040,10 @@ async function readSavingRows(context) {
     annualReturn: Number(row?.[5]) || 0,
     managementFee: Number(row?.[6]) || 0,
     updatedAt: String(row?.[7] ?? ''),
+<<<<<<< HEAD
+=======
+    salaryLinked: ['true', '1', 'כן'].includes(String(row?.[8] ?? '').toLowerCase()),
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
     rowIndex: index + 2,
   })).filter(item => item.id && item.name)
 }
@@ -1040,6 +1071,10 @@ export async function upsertSaving(accessToken, cacheKey, monthKey, rawSaving, s
     monthlyDeposit: Math.max(Number(rawSaving?.monthlyDeposit) || 0, 0),
     annualReturn: Math.max(-99.9, Math.min(Number(rawSaving?.annualReturn) || 0, 1000)),
     managementFee: Math.max(Number(rawSaving?.managementFee) || 0, 0),
+<<<<<<< HEAD
+=======
+    salaryLinked: Boolean(rawSaving?.salaryLinked),
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
     updatedAt: new Date().toISOString(),
   }
 
@@ -1055,16 +1090,28 @@ export async function upsertSaving(accessToken, cacheKey, monthKey, rawSaving, s
     saving.annualReturn,
     saving.managementFee,
     saving.updatedAt,
+<<<<<<< HEAD
   ]]
 
   if (existing) {
     const range = a1(SAVINGS_SHEET, `A${existing.rowIndex}:H${existing.rowIndex}`)
+=======
+    saving.salaryLinked ? 'true' : 'false',
+  ]]
+
+  if (existing) {
+    const range = a1(SAVINGS_SHEET, `A${existing.rowIndex}:I${existing.rowIndex}`)
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
     await context.googleRequest(
       `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
       { method: 'PUT', body: JSON.stringify({ values }) }
     )
   } else {
+<<<<<<< HEAD
     const range = a1(SAVINGS_SHEET, 'A2:H')
+=======
+    const range = a1(SAVINGS_SHEET, 'A2:I')
+>>>>>>> c98eac7 (connect live salary rates to savings tracking)
     await context.googleRequest(
       `${SHEETS_BASE}/${context.spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`,
       { method: 'POST', body: JSON.stringify({ values }) }
